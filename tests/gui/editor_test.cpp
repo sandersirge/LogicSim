@@ -127,5 +127,34 @@ int main() {
 	check(e.document().main.wires.size() == before + 1 && !e.document().main.wires.back().bends.empty(),
 	      "click-click-click wiring with a bend");
 
+	// Branch: drag from the middle of a wire to another pin
+	gui::Editor f;
+	f.setRunning(false);
+	f.startPlacing(Kind::Switch);
+	click(f, 3, 3); // switch at (2, 2), output (4, 3)
+	f.startPlacing(Kind::Led);
+	click(f, 14, 3); // LED at (13, 2), input (13, 3)
+	f.startPlacing(Kind::Led);
+	click(f, 14, 9); // LED at (13, 8), input (13, 9)
+	drag(f, 4, 3, 13, 3);
+	drag(f, 8.2f, 3.1f, 13, 9);
+	const auto& fw = f.document().main.wires;
+	check(fw.size() == 2, std::format("branch added a second wire ({})", fw.size()));
+	if (fw.size() == 2) {
+		check(fw[1].from == fw[0].from, "the branch starts at the same output");
+		check(fw[1].bends.size() == 1 && fw[1].bends[0] == Point{8, 3},
+		      "and follows the wire to the grab point");
+		int swId = fw[0].from.component;
+		click(f, 2.6f, 2.5f);
+		f.runTicks(3);
+		check(f.pinValue(fw[0].to.component, 0) == Value::of(1, 1) &&
+		          f.pinValue(fw[1].to.component, 0) == Value::of(1, 1),
+		      "both LEDs follow the switch");
+		check(f.document().main.find(swId)->props.value == 1, "switch is on");
+	}
+	// A click (no drag) on a wire only selects it
+	click(f, 6.f, 3.f);
+	check(f.document().main.wires.size() == 2 && f.selection().empty(), "click on a wire selects it");
+
 	return test::report("editor_test");
 }

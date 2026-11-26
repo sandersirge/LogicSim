@@ -55,6 +55,7 @@ build/bin/logicsim examples/basics.json
 |---|---|
 | Click a part in the toolbox, then click on the grid | place it (hold Shift to place more) |
 | Drag from a pin to another pin | wire them; clicks on the grid on the way add bends |
+| Drag from the middle of a wire | branch it: a new wire from the same output, with a dot where it splits |
 | Click a switch, or a bit of an input pin | flip it (hold a button down) |
 | Drag a part / drag on empty grid | move it / select an area |
 | Right or middle drag, mouse wheel | pan, zoom |

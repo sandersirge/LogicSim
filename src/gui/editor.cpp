@@ -472,8 +472,11 @@ void Editor::mousePressed(sf::Mouse::Button button, ImVec2 screen, bool shift) {
 
 	int wire = wireAt(world);
 	if (wire >= 0) {
+		// A click selects the wire, a drag starts a branch from it
 		selected_.clear();
 		selectedWire_ = wire;
+		pressedWire_ = wire;
+		mode_ = Mode::WirePressed;
 		return;
 	}
 
@@ -491,6 +494,11 @@ void Editor::mouseMoved(ImVec2 screen) {
 		dragged_ = true;
 	}
 	switch (mode_) {
+	case Mode::WirePressed:
+		if (dragged_) {
+			startBranch(pressedWire_, pressWorld_);
+		}
+		break;
 	case Mode::Panning:
 		camera_.offset.x += screen.x - previous.x;
 		camera_.offset.y += screen.y - previous.y;
@@ -571,6 +579,9 @@ void Editor::mouseReleased(sf::Mouse::Button button, ImVec2 screen) {
 		}
 		mode_ = Mode::Idle;
 		break;
+	case Mode::WirePressed:
+		mode_ = Mode::Idle;
+		break;
 	case Mode::Pressing:
 		if (Component* c = doc_.main.find(pressedComponent_)) {
 			interact(*c, world, false);
@@ -629,6 +640,46 @@ void Editor::finishWire(PinRef end) {
 	wireBends_.clear();
 	mode_ = Mode::Idle;
 	changed();
+}
+
+void Editor::startBranch(int index, ImVec2 world) {
+	if (index < 0 || index >= static_cast<int>(doc_.main.wires.size())) {
+		mode_ = Mode::Idle;
+		return;
+	}
+	const Wire& wire = doc_.main.wires[static_cast<size_t>(index)];
+	std::vector<Point> path = wirePath(doc_.main, doc_.library, wire);
+	if (path.size() < 2) {
+		mode_ = Mode::Idle;
+		return;
+	}
+	// The segment that was grabbed, and the grid point on it nearest to the mouse
+	size_t segment = 1;
+	float best = 1e9f;
+	for (size_t k = 1; k < path.size(); k++) {
+		ImVec2 a{static_cast<float>(path[k - 1].x), static_cast<float>(path[k - 1].y)};
+		ImVec2 b{static_cast<float>(path[k].x), static_cast<float>(path[k].y)};
+		float d = distanceToSegment(world, a, b);
+		if (d < best) {
+			best = d;
+			segment = k;
+		}
+	}
+	Point a = path[segment - 1], b = path[segment];
+	Point grab = snapped(world);
+	if (a.y == b.y) {
+		grab = {std::clamp(grab.x, std::min(a.x, b.x), std::max(a.x, b.x)), a.y};
+	} else {
+		grab = {a.x, std::clamp(grab.y, std::min(a.y, b.y), std::max(a.y, b.y))};
+	}
+	// The branch follows the wire's corners up to the grab point, then goes its own way
+	wireBends_.assign(path.begin() + 1, path.begin() + static_cast<long>(segment));
+	if (wireBends_.empty() || !(wireBends_.back() == grab)) {
+		wireBends_.push_back(grab);
+	}
+	wireStart_ = wire.from;
+	selectedWire_ = -1;
+	mode_ = Mode::Wiring;
 }
 
 void Editor::wheel(float delta, ImVec2 screen) {
@@ -791,6 +842,8 @@ void Editor::draw(ImDrawList* list) {
 		drawWire(list, camera_, path, valueColor(v), thickness);
 	}
 
+	drawJunctions(list);
+
 	for (const Component& c : circuit.components) {
 		Look look;
 		look.selected = selected_.contains(c.id);
@@ -835,6 +888,52 @@ void Editor::draw(ImDrawList* list) {
 		}
 	}
 	list->PopClipRect();
+}
+
+namespace {
+
+// Every grid point a wire passes, in order
+std::vector<Point> gridPoints(const std::vector<Point>& path) {
+	std::vector<Point> points;
+	for (size_t i = 0; i + 1 < path.size(); i++) {
+		Point a = path[i], b = path[i + 1];
+		int steps = std::max(std::abs(b.x - a.x), std::abs(b.y - a.y));
+		for (int k = 0; k < steps; k++) {
+			points.push_back({a.x + (b.x - a.x) * k / steps, a.y + (b.y - a.y) * k / steps});
+		}
+	}
+	if (!path.empty()) {
+		points.push_back(path.back());
+	}
+	return points;
+}
+
+} // namespace
+
+void Editor::drawJunctions(ImDrawList* list) const {
+	// Wires from the same output that run together and then split get a dot where they split
+	const Circuit& circuit = doc_.main;
+	std::map<std::pair<int, int>, std::vector<std::vector<Point>>> bySource;
+	for (const Wire& w : circuit.wires) {
+		bySource[{w.from.component, w.from.pin}].push_back(gridPoints(wirePath(circuit, doc_.library, w)));
+	}
+	for (const auto& [source, paths] : bySource) {
+		for (size_t i = 0; i < paths.size(); i++) {
+			for (size_t j = i + 1; j < paths.size(); j++) {
+				const std::vector<Point>& a = paths[i];
+				const std::vector<Point>& b = paths[j];
+				size_t same = 0;
+				while (same < a.size() && same < b.size() && a[same] == b[same]) {
+					same++;
+				}
+				if (same > 1 && same < a.size() && same < b.size()) {
+					Value v = pinValue(source.first, source.second);
+					float r = camera_.scale() * (v.width > 1 ? 0.22f : 0.17f);
+					list->AddCircleFilled(camera_.toScreen(a[same - 1]), r, valueColor(v));
+				}
+			}
+		}
+	}
 }
 
 std::string Editor::hoverText() const {

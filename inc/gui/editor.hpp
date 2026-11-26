@@ -85,7 +85,7 @@ public:
 	void runTicks(logic::Tick ticks);
 
 private:
-	enum class Mode { Idle, Placing, Moving, Selecting, Wiring, Panning, Pressing };
+	enum class Mode { Idle, Placing, Moving, Selecting, Wiring, Panning, Pressing, WirePressed };
 
 	// Call before changing the document: saves an undo step
 	void beginChange();
@@ -106,7 +106,11 @@ private:
 	// A click (not a drag) on a switch, input pin bit or button
 	bool interact(Component& c, ImVec2 world, bool press);
 	void finishWire(PinRef end);
+	// Starts a new wire from the same source as wire `index`, following it up to the grid point
+	// nearest to `world` (a branch)
+	void startBranch(int index, ImVec2 world);
 	void pasteCircuit(const Circuit& source, Point offset);
+	void drawJunctions(ImDrawList* list) const;
 
 	logic::Document doc_;
 	std::filesystem::path path_;
@@ -133,6 +137,7 @@ private:
 	ImVec2 pressScreen_{0, 0};
 	Point moved_{0, 0};
 	int pressedComponent_ = -1;
+	int pressedWire_ = -1;
 	bool dragged_ = false;
 	logic::Document beforeMove_;
 	// Wiring
