@@ -91,4 +91,129 @@ float distanceToSegment(ImVec2 p, ImVec2 a, ImVec2 b) {
 	return std::sqrt(cx * cx + cy * cy);
 }
 
+std::vector<Segment> wireOverlaps(const std::vector<std::vector<Point>>& paths,
+                                  const std::vector<int>& nets) {
+	// Every straight piece of every wire, grouped by the grid line it lies on
+	struct Run {
+		int line, lo, hi, net;
+	};
+	std::vector<Run> horizontal, vertical;
+	for (size_t i = 0; i < paths.size() && i < nets.size(); i++) {
+		const std::vector<Point>& path = paths[i];
+		for (size_t k = 1; k < path.size(); k++) {
+			Point a = path[k - 1], b = path[k];
+			if (a.y == b.y && a.x != b.x) {
+				horizontal.push_back({a.y, std::min(a.x, b.x), std::max(a.x, b.x), nets[i]});
+			} else if (a.x == b.x && a.y != b.y) {
+				vertical.push_back({a.x, std::min(a.y, b.y), std::max(a.y, b.y), nets[i]});
+			}
+		}
+	}
+	std::vector<Segment> overlaps;
+	auto scan = [&](std::vector<Run>& runs, bool across) {
+		std::ranges::sort(runs, [](const Run& r, const Run& s) {
+			return r.line != s.line ? r.line < s.line : r.lo < s.lo;
+		});
+		for (size_t i = 0; i < runs.size(); i++) {
+			const Run& r = runs[i];
+			for (size_t j = i + 1; j < runs.size() && runs[j].line == r.line && runs[j].lo < r.hi; j++) {
+				const Run& s = runs[j];
+				if (s.net == r.net) {
+					continue;
+				}
+				int lo = s.lo, hi = std::min(r.hi, s.hi);
+				overlaps.push_back(across ? Segment{{lo, r.line}, {hi, r.line}}
+				                          : Segment{{r.line, lo}, {r.line, hi}});
+			}
+		}
+	};
+	scan(horizontal, true);
+	scan(vertical, false);
+	return overlaps;
+}
+
+namespace {
+
+// On the horizontal or vertical segment a-b, ends included
+bool onSegment(Point p, Point a, Point b) {
+	if (a.x == b.x) {
+		return p.x == a.x && p.y >= std::min(a.y, b.y) && p.y <= std::max(a.y, b.y);
+	}
+	return p.y == a.y && p.x >= std::min(a.x, b.x) && p.x <= std::max(a.x, b.x);
+}
+
+// Both on the same grid line and sharing more than a point
+bool alongside(Point a, Point b, Point c, Point d) {
+	if (a.y == b.y && c.y == d.y && a.y == c.y && a.x != b.x && c.x != d.x) {
+		return std::min(std::max(a.x, b.x), std::max(c.x, d.x)) >
+		       std::max(std::min(a.x, b.x), std::min(c.x, d.x));
+	}
+	if (a.x == b.x && c.x == d.x && a.x == c.x && a.y != b.y && c.y != d.y) {
+		return std::min(std::max(a.y, b.y), std::max(c.y, d.y)) >
+		       std::max(std::min(a.y, b.y), std::min(c.y, d.y));
+	}
+	return false;
+}
+
+// Corners of a path (its points apart from the two ends) that lie on the other path
+bool cornerOn(const std::vector<Point>& path, const std::vector<Point>& other) {
+	for (size_t i = 1; i + 1 < path.size(); i++) {
+		for (size_t k = 1; k < other.size(); k++) {
+			if (onSegment(path[i], other[k - 1], other[k])) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool clearOf(const std::vector<Point>& path, const std::vector<std::vector<Point>>& others,
+             const std::vector<Point>& avoid) {
+	for (Point p : avoid) {
+		for (size_t i = 1; i < path.size(); i++) {
+			if (onSegment(p, path[i - 1], path[i])) {
+				return false;
+			}
+		}
+	}
+	for (const std::vector<Point>& other : others) {
+		for (size_t i = 1; i < path.size(); i++) {
+			for (size_t k = 1; k < other.size(); k++) {
+				if (alongside(path[i - 1], path[i], other[k - 1], other[k])) {
+					return false;
+				}
+			}
+		}
+		if (cornerOn(path, other) || cornerOn(other, path)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+} // namespace
+
+std::vector<Point> routeAround(Point from, Point to, const std::vector<std::vector<Point>>& others,
+                               const std::vector<Point>& avoid) {
+	if (from.x == to.x || from.y == to.y || clearOf(wirePath(from, to, {}), others, avoid)) {
+		return {};
+	}
+	// The other columns between the two pins, nearest to the middle first
+	int middle = (from.x + to.x) / 2;
+	std::vector<int> columns;
+	for (int x = std::min(from.x, to.x) + 1; x < std::max(from.x, to.x); x++) {
+		if (x != middle) {
+			columns.push_back(x);
+		}
+	}
+	std::ranges::stable_sort(columns, {}, [&](int x) { return std::abs(x - middle); });
+	for (int x : columns) {
+		std::vector<Point> bends{{x, from.y}, {x, to.y}};
+		if (clearOf(wirePath(from, to, bends), others, avoid)) {
+			return bends;
+		}
+	}
+	return {};
+}
+
 } // namespace gui

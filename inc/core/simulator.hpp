@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <queue>
+#include <unordered_set>
 #include <vector>
 
 namespace logic {
@@ -29,6 +30,12 @@ public:
 
 	// Power-on: every net X, stored values 0, sources drive their values at tick 0
 	void reset();
+	// Instead of a power-on: continues a previous simulation of the same circuit before it was
+	// edited and recompiled. Primitives that are still there (same component path, kind and
+	// widths) keep their stored values, RAM contents and clock phase, the nets they drive keep their
+	// values, and time goes on from previous.now(). The rest starts as at power-on. Every primitive
+	// is then evaluated once, so new wires and parts take effect (settle() to see the result).
+	void carryOver(const Simulator& previous);
 
 	// Sets a switch, button or input pin (takes effect at now())
 	void setSource(int prim, Value value);
@@ -78,6 +85,7 @@ private:
 	std::vector<std::uint64_t> scheduledSeq_; // its seq (an older event at the same time is dropped)
 	std::vector<Tick> changed_;
 	std::priority_queue<Event, std::vector<Event>, std::greater<>> queue_;
+	std::unordered_set<std::uint64_t> cancelled_; // seq of queued events replaced at the same tick
 	std::uint64_t seq_ = 0;
 	Tick now_ = 0;
 	std::size_t netEvents_ = 0; // pending events that are not clock toggles

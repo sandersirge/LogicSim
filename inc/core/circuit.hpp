@@ -6,6 +6,7 @@
 #include "core/components.hpp"
 
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,6 +26,7 @@ struct Component {
 	int rotation = 0; // quarter turns clockwise, 0..3
 	std::string label;
 	Props props;
+	friend bool operator==(const Component&, const Component&) = default;
 };
 
 struct PinRef {
@@ -37,6 +39,7 @@ struct Wire {
 	PinRef from;
 	PinRef to;
 	std::vector<Point> bends; // corner points between the two pins
+	friend bool operator==(const Wire&, const Wire&) = default;
 };
 
 struct Circuit {
@@ -89,5 +92,32 @@ ComponentSpec specOf(const Component& component, const Library& library);
 // Adds a wire between two pins given by name; false (and nothing added) if a pin does not exist
 bool connect(Circuit& circuit, const Library& library, int fromId, std::string_view fromPin, int toId,
              std::string_view toPin);
+
+// --- Working with chips (the editor's chip commands)
+
+// The ids of a chip circuit's input and output pin components, in the order of the chip's pins
+// (inputs, then outputs, as chipSpec lays them out). They identify the pins while they are
+// renamed and moved around.
+std::vector<int> portIds(const Circuit& circuit);
+
+// After the pins of chip `name` changed (they were the components `before`, see portIds): wires
+// to its instances, in the main circuit and in every chip, follow each pin to its new place;
+// wires to pins that are gone are removed.
+void remapChipPins(Document& document, std::string_view name, const std::vector<int>& before);
+
+// A chip made of the given components of a circuit and the wires between them, moved so that it
+// starts at (0, 0). Its input and output pins become the chip's pins.
+ChipDef chipFromSelection(const Circuit& circuit, const std::set<int>& ids);
+
+// How many instances of the chip there are in the main circuit and in the chips
+int countInstances(const Document& document, std::string_view name);
+
+// Renames a chip and all its instances; false (nothing changed) if the new name is empty or taken
+bool renameChip(Document& document, std::string_view from, const std::string& to);
+
+// Adds the chips of another library (an imported file). A chip whose name is taken is left out
+// when it is the same chip, otherwise it is added under a new name ("Adder (2)") and the imported
+// chips that use it are changed to match. Returns a message for each renamed chip.
+std::vector<std::string> mergeLibrary(Library& into, const Library& from);
 
 } // namespace logic

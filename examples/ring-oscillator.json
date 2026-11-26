@@ -1,0 +1,177 @@
+{
+	"chips": {},
+	"circuit": {
+		"components": [
+			{
+				"id": 1,
+				"label": "EN",
+				"type": "switch",
+				"x": 0,
+				"y": 0
+			},
+			{
+				"id": 2,
+				"props": {
+					"delay": 2
+				},
+				"type": "nand",
+				"x": 6,
+				"y": 0
+			},
+			{
+				"id": 3,
+				"props": {
+					"delay": 2
+				},
+				"type": "not",
+				"x": 12,
+				"y": 1
+			},
+			{
+				"id": 4,
+				"props": {
+					"delay": 2
+				},
+				"type": "not",
+				"x": 16,
+				"y": 1
+			},
+			{
+				"id": 5,
+				"props": {
+					"delay": 2
+				},
+				"type": "not",
+				"x": 20,
+				"y": 1
+			},
+			{
+				"id": 6,
+				"props": {
+					"delay": 2
+				},
+				"type": "not",
+				"x": 24,
+				"y": 1
+			},
+			{
+				"id": 7,
+				"label": "OUT",
+				"type": "led",
+				"x": 32,
+				"y": 1
+			},
+			{
+				"id": 8,
+				"props": {
+					"text": "Five inverting gates in a loop never settle: the signal keeps chasing itself."
+				},
+				"type": "text",
+				"x": 0,
+				"y": 9
+			},
+			{
+				"id": 9,
+				"props": {
+					"text": "Each gate has a delay of 2 ticks, so OUT changes every 10 ticks. EN starts and stops it."
+				},
+				"type": "text",
+				"x": 0,
+				"y": 11
+			}
+		],
+		"name": "Ring oscillator",
+		"wires": [
+			{
+				"from": [
+					1,
+					"out"
+				],
+				"to": [
+					2,
+					"in0"
+				]
+			},
+			{
+				"from": [
+					2,
+					"out"
+				],
+				"to": [
+					3,
+					"in"
+				]
+			},
+			{
+				"from": [
+					3,
+					"out"
+				],
+				"to": [
+					4,
+					"in"
+				]
+			},
+			{
+				"from": [
+					4,
+					"out"
+				],
+				"to": [
+					5,
+					"in"
+				]
+			},
+			{
+				"from": [
+					5,
+					"out"
+				],
+				"to": [
+					6,
+					"in"
+				]
+			},
+			{
+				"from": [
+					6,
+					"out"
+				],
+				"to": [
+					7,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						28,
+						2
+					],
+					[
+						28,
+						6
+					],
+					[
+						4,
+						6
+					],
+					[
+						4,
+						3
+					]
+				],
+				"from": [
+					6,
+					"out"
+				],
+				"to": [
+					2,
+					"in1"
+				]
+			}
+		]
+	},
+	"format": "logicsim",
+	"version": 1
+}

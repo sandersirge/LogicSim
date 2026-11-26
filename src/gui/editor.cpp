@@ -50,10 +50,13 @@ void Editor::newDocument() {
 	selected_.clear();
 	selectedWire_ = -1;
 	mode_ = Mode::Idle;
+	editPath_.clear();
+	parkedSims_.clear();
+	parkedCameras_.clear();
 	loadWarnings.clear();
 	camera_ = {};
 	camera_.offset = {canvasMin_.x + 2 * GRID, canvasMin_.y + 2 * GRID};
-	rebuild();
+	rebuild(Restart::PowerOn);
 }
 
 bool Editor::open(const std::filesystem::path& path, std::string& error) {
@@ -74,7 +77,10 @@ bool Editor::open(const std::filesystem::path& path, std::string& error) {
 	selected_.clear();
 	selectedWire_ = -1;
 	mode_ = Mode::Idle;
-	rebuild();
+	editPath_.clear();
+	parkedSims_.clear();
+	parkedCameras_.clear();
+	rebuild(Restart::PowerOn);
 	fitView();
 	return true;
 }
@@ -91,7 +97,12 @@ bool Editor::save(const std::filesystem::path& path, std::string& error) {
 // ------------------------------------------------------------------------------------ Changes
 
 void Editor::beginChange() {
-	undo_.push_back(doc_);
+	endGesture(false);
+	pushUndo(doc_);
+}
+
+void Editor::pushUndo(logic::Document before) {
+	undo_.push_back(std::move(before));
 	if (undo_.size() > MAX_UNDO) {
 		undo_.erase(undo_.begin());
 	}
@@ -99,13 +110,87 @@ void Editor::beginChange() {
 	modified_ = true;
 }
 
-void Editor::changed() {
-	rebuild();
+void Editor::endGesture(bool revert) {
+	// While panning, the gesture under it is the one to end
+	Mode& gesture = mode_ == Mode::Panning ? beforePan_ : mode_;
+	switch (gesture) {
+	case Mode::Moving:
+		if (moved_.x != 0 || moved_.y != 0) {
+			if (revert) {
+				doc_ = std::move(beforeMove_);
+			} else {
+				pushUndo(std::move(beforeMove_));
+			}
+			moved_ = {0, 0};
+			moved();
+		}
+		break;
+	case Mode::Pressing:
+		// A button held down is let go
+		if (Component* c = current().find(pressedComponent_); c != nullptr && c->kind == Kind::Button) {
+			interact(*c, mouseWorld(), false);
+		}
+		break;
+	default:
+		break;
+	}
+	if (gesture != Mode::Placing) {
+		gesture = Mode::Idle;
+	}
+	wireBends_.clear();
 }
 
-void Editor::rebuild(bool settle) {
-	compiled_ = logic::compile(doc_.main, doc_.library);
-	sim_ = logic::Simulator(compiled_.netlist);
+void Editor::changed() {
+	syncPorts();
+	rebuild(Restart::Continue);
+}
+
+void Editor::moved() {
+	// Positions do not matter to the netlist of the circuit being edited: no recompile needed.
+	// Inside a chip they give the order of its pins, though.
+	syncPorts();
+	findOverlaps();
+}
+
+void Editor::syncPorts() {
+	if (editPath_.empty()) {
+		return;
+	}
+	logic::remapChipPins(doc_, editPath_.back(), ports_);
+	ports_ = logic::portIds(current());
+}
+
+void Editor::findOverlaps() {
+	std::vector<std::vector<Point>> paths;
+	std::vector<int> nets;
+	for (size_t i = 0; i < current().wires.size(); i++) {
+		const Wire& w = current().wires[i];
+		paths.push_back(wirePath(current(), doc_.library, w));
+		int net = compiled_.net(w.from.component, w.from.pin);
+		nets.push_back(net >= 0 ? net : -2 - static_cast<int>(i)); // a broken wire is a signal of its own
+	}
+	overlaps_ = wireOverlaps(paths, nets);
+	findJunctions();
+}
+
+int Editor::overlapAt(ImVec2 world) const {
+	for (size_t i = 0; i < overlaps_.size(); i++) {
+		ImVec2 a{static_cast<float>(overlaps_[i].a.x), static_cast<float>(overlaps_[i].a.y)};
+		ImVec2 b{static_cast<float>(overlaps_[i].b.x), static_cast<float>(overlaps_[i].b.y)};
+		if (distanceToSegment(world, a, b) < 0.3f) {
+			return static_cast<int>(i);
+		}
+	}
+	return -1;
+}
+
+void Editor::rebuild(Restart restart, bool settle) {
+	compiled_ = logic::compile(current(), doc_.library);
+	logic::Simulator next(compiled_.netlist);
+	if (restart == Restart::Continue) {
+		next.carryOver(sim_);
+	}
+	sim_ = std::move(next);
 	errorComponents_.clear();
 	for (const logic::Diagnostic& d : compiled_.diagnostics) {
 		if (d.error) {
@@ -114,36 +199,41 @@ void Editor::rebuild(bool settle) {
 	}
 	tickDebt_ = 0.0;
 	oscillating_ = settle && sim_.settle(EVENT_BUDGET) == logic::SettleResult::Oscillating;
+	findOverlaps();
 }
 
 void Editor::undo() {
+	endGesture(false);
 	if (undo_.empty()) {
 		return;
 	}
 	redo_.push_back(std::move(doc_));
 	doc_ = std::move(undo_.back());
 	undo_.pop_back();
-	std::erase_if(selected_, [&](int id) { return doc_.main.find(id) == nullptr; });
+	checkEditPath();
+	std::erase_if(selected_, [&](int id) { return current().find(id) == nullptr; });
 	selectedWire_ = -1;
 	modified_ = true;
-	rebuild();
+	rebuild(Restart::Continue);
 }
 
 void Editor::redo() {
+	endGesture(false);
 	if (redo_.empty()) {
 		return;
 	}
 	undo_.push_back(std::move(doc_));
 	doc_ = std::move(redo_.back());
 	redo_.pop_back();
-	std::erase_if(selected_, [&](int id) { return doc_.main.find(id) == nullptr; });
+	checkEditPath();
+	std::erase_if(selected_, [&](int id) { return current().find(id) == nullptr; });
 	selectedWire_ = -1;
 	modified_ = true;
-	rebuild();
+	rebuild(Restart::Continue);
 }
 
 void Editor::remapPins(int id, const ComponentSpec& before) {
-	const Component* c = doc_.main.find(id);
+	const Component* c = current().find(id);
 	if (c == nullptr) {
 		return;
 	}
@@ -158,16 +248,165 @@ void Editor::remapPins(int id, const ComponentSpec& before) {
 		ref.pin = after.pinIndex(before.pins[static_cast<size_t>(ref.pin)].name);
 		return ref.pin >= 0;
 	};
-	std::erase_if(doc_.main.wires, [&](Wire& w) { return !(remap(w.from) && remap(w.to)); });
+	std::erase_if(current().wires, [&](Wire& w) { return !(remap(w.from) && remap(w.to)); });
+}
+
+// -------------------------------------------------------------------------------------- Chips
+
+Circuit& Editor::current() {
+	return editPath_.empty() ? doc_.main : doc_.library.chips.find(editPath_.back())->second.circuit;
+}
+
+const Circuit& Editor::current() const {
+	return editPath_.empty() ? doc_.main : doc_.library.chips.find(editPath_.back())->second.circuit;
+}
+
+void Editor::checkEditPath() {
+	for (size_t i = 0; i < editPath_.size(); i++) {
+		if (doc_.library.find(editPath_[i]) == nullptr) {
+			leaveTo(i);
+			break;
+		}
+	}
+	if (!editPath_.empty()) {
+		ports_ = logic::portIds(current());
+	}
+}
+
+void Editor::enterChip(const std::string& name) {
+	if (doc_.library.find(name) == nullptr || std::ranges::find(editPath_, name) != editPath_.end()) {
+		return;
+	}
+	endGesture(false);
+	if (mode_ == Mode::Placing) {
+		mode_ = Mode::Idle;
+	}
+	parkedSims_.push_back(std::move(sim_));
+	parkedCameras_.push_back(camera_);
+	editPath_.push_back(name);
+	ports_ = logic::portIds(current());
+	chipName_ = name;
+	selected_.clear();
+	selectedWire_ = -1;
+	// On its own the chip's input pins are clickable sources: it can be tried out while editing
+	rebuild(Restart::PowerOn);
+	fitView();
+}
+
+void Editor::leaveTo(size_t depth) {
+	if (depth >= editPath_.size()) {
+		return;
+	}
+	endGesture(false);
+	if (mode_ == Mode::Placing) {
+		mode_ = Mode::Idle;
+	}
+	while (editPath_.size() > depth) {
+		editPath_.pop_back();
+		sim_ = std::move(parkedSims_.back());
+		parkedSims_.pop_back();
+		camera_ = parkedCameras_.back();
+		parkedCameras_.pop_back();
+	}
+	ports_ = editPath_.empty() ? std::vector<int>{} : logic::portIds(current());
+	if (!editPath_.empty()) {
+		chipName_ = editPath_.back();
+	}
+	selected_.clear();
+	selectedWire_ = -1;
+	// The circuit goes on where it was left, with the changes made inside the chip
+	rebuild(Restart::Continue);
+}
+
+bool Editor::canPlace(std::string_view chip) const {
+	if (doc_.library.find(chip) == nullptr) {
+		return false;
+	}
+	if (editPath_.empty()) {
+		return true;
+	}
+	// A chip that contains (or is) the one being edited would end up containing itself
+	const std::string& here = editPath_.back();
+	return chip != here && !doc_.library.uses(chip, here);
+}
+
+void Editor::startPlacingChip(const std::string& name) {
+	if (!canPlace(name)) {
+		return;
+	}
+	startPlacing(Kind::Chip);
+	placeProps_.chip = name;
+}
+
+std::string Editor::createChip(const std::string& name, const std::string& color,
+                               const std::string& description) {
+	if (name.empty()) {
+		return "Give the chip a name.";
+	}
+	if (doc_.library.find(name) != nullptr) {
+		return std::format("There is already a chip called \"{}\".", name);
+	}
+	bool pins = std::ranges::any_of(selected_, [&](int id) {
+		const Component* c = current().find(id);
+		return c != nullptr && (c->kind == Kind::InputPin || c->kind == Kind::OutputPin);
+	});
+	if (!pins) {
+		return "Select input pins and output pins too: they become the pins of the chip.";
+	}
+	beginChange();
+	logic::ChipDef def = logic::chipFromSelection(current(), selected_);
+	def.circuit.name = name;
+	def.color = color;
+	def.description = description;
+	doc_.library.chips[name] = std::move(def);
+	changed();
+	return {};
+}
+
+bool Editor::deleteChip(const std::string& name) {
+	if (doc_.library.find(name) == nullptr || logic::countInstances(doc_, name) > 0 ||
+	    std::ranges::find(editPath_, name) != editPath_.end()) {
+		return false;
+	}
+	beginChange();
+	doc_.library.chips.erase(doc_.library.chips.find(name));
+	changed();
+	return true;
+}
+
+std::vector<std::string> Editor::importChips(const logic::Library& library) {
+	endGesture(false);
+	logic::Document before = doc_;
+	size_t count = doc_.library.chips.size();
+	std::vector<std::string> messages = logic::mergeLibrary(doc_.library, library);
+	size_t added = doc_.library.chips.size() - count;
+	if (added == 0) {
+		messages.insert(messages.begin(), "No new chips: they are all here already.");
+		return messages;
+	}
+	pushUndo(std::move(before));
+	changed();
+	messages.insert(messages.begin(), std::format("{} chip{} imported.", added, added == 1 ? "" : "s"));
+	return messages;
+}
+
+void Editor::doubleClicked(ImVec2 screen) {
+	mouse_ = screen;
+	int id = componentAt(mouseWorld());
+	const Component* c = id >= 0 ? current().find(id) : nullptr;
+	if (c != nullptr && c->kind == Kind::Chip && doc_.library.find(c->props.chip) != nullptr) {
+		endGesture(true);
+		enterChip(c->props.chip);
+	}
 }
 
 // ---------------------------------------------------------------------------------- Selection
 
 void Editor::cancel() {
+	endGesture(true);
 	mode_ = Mode::Idle;
 	selected_.clear();
 	selectedWire_ = -1;
-	wireBends_.clear();
 }
 
 void Editor::startPlacing(Kind kind) {
@@ -184,11 +423,11 @@ void Editor::deleteSelection() {
 		return;
 	}
 	beginChange();
-	if (selectedWire_ >= 0 && selectedWire_ < static_cast<int>(doc_.main.wires.size())) {
-		doc_.main.wires.erase(doc_.main.wires.begin() + selectedWire_);
+	if (selectedWire_ >= 0 && selectedWire_ < static_cast<int>(current().wires.size())) {
+		current().wires.erase(current().wires.begin() + selectedWire_);
 	}
 	for (int id : selected_) {
-		doc_.main.remove(id);
+		current().remove(id);
 	}
 	selected_.clear();
 	selectedWire_ = -1;
@@ -196,25 +435,32 @@ void Editor::deleteSelection() {
 }
 
 void Editor::rotateSelection() {
+	// Text notes are always read left to right: they do not turn
 	if (mode_ == Mode::Placing) {
-		placeRotation_ = (placeRotation_ + 1) & 3;
+		if (placeKind_ != Kind::Text) {
+			placeRotation_ = (placeRotation_ + 1) & 3;
+		}
 		return;
 	}
-	if (selected_.empty()) {
+	bool turnable = std::ranges::any_of(selected_, [&](int id) {
+		const Component* c = current().find(id);
+		return c != nullptr && c->kind != Kind::Text;
+	});
+	if (!turnable) {
 		return;
 	}
 	beginChange();
 	for (int id : selected_) {
-		if (Component* c = doc_.main.find(id)) {
+		if (Component* c = current().find(id); c != nullptr && c->kind != Kind::Text) {
 			c->rotation = (c->rotation + 1) & 3;
 		}
 	}
-	changed();
+	moved();
 }
 
 void Editor::selectAll() {
 	selected_.clear();
-	for (const Component& c : doc_.main.components) {
+	for (const Component& c : current().components) {
 		selected_.insert(c.id);
 	}
 	selectedWire_ = -1;
@@ -225,12 +471,12 @@ void Editor::copySelection() {
 		return;
 	}
 	clipboard_ = {};
-	for (const Component& c : doc_.main.components) {
+	for (const Component& c : current().components) {
 		if (selected_.contains(c.id)) {
 			clipboard_.components.push_back(c);
 		}
 	}
-	for (const Wire& w : doc_.main.wires) {
+	for (const Wire& w : current().wires) {
 		if (selected_.contains(w.from.component) && selected_.contains(w.to.component)) {
 			clipboard_.wires.push_back(w);
 		}
@@ -262,22 +508,28 @@ void Editor::pasteCircuit(const Circuit& source, Point offset) {
 	selected_.clear();
 	selectedWire_ = -1;
 	for (Component c : source.components) {
-		int id = doc_.main.nextId++;
+		if (c.kind == Kind::Chip && !canPlace(c.props.chip)) {
+			continue; // a chip cannot contain itself
+		}
+		int id = current().nextId++;
 		ids[c.id] = id;
 		c.id = id;
 		c.pos.x += offset.x;
 		c.pos.y += offset.y;
-		doc_.main.components.push_back(c);
+		current().components.push_back(c);
 		selected_.insert(id);
 	}
 	for (Wire w : source.wires) {
+		if (!ids.contains(w.from.component) || !ids.contains(w.to.component)) {
+			continue;
+		}
 		w.from.component = ids[w.from.component];
 		w.to.component = ids[w.to.component];
 		for (Point& b : w.bends) {
 			b.x += offset.x;
 			b.y += offset.y;
 		}
-		doc_.main.wires.push_back(w);
+		current().wires.push_back(w);
 	}
 	changed();
 }
@@ -291,7 +543,7 @@ Point Editor::snapped(ImVec2 world) const {
 std::optional<PinRef> Editor::pinAt(ImVec2 world) const {
 	std::optional<PinRef> best;
 	float bestDistance = 0.45f;
-	for (const Component& c : doc_.main.components) {
+	for (const Component& c : current().components) {
 		ComponentSpec spec = specOf(c);
 		for (size_t i = 0; i < spec.pins.size(); i++) {
 			Point p = pinPosition(c, spec, static_cast<int>(i));
@@ -314,7 +566,7 @@ bool Editor::insideBox(const Component& c, ImVec2 world, float margin) const {
 }
 
 int Editor::componentAt(ImVec2 world) const {
-	for (auto it = doc_.main.components.rbegin(); it != doc_.main.components.rend(); ++it) {
+	for (auto it = current().components.rbegin(); it != current().components.rend(); ++it) {
 		if (insideBox(*it, world, 0.05f)) {
 			return it->id;
 		}
@@ -323,8 +575,8 @@ int Editor::componentAt(ImVec2 world) const {
 }
 
 int Editor::wireAt(ImVec2 world) const {
-	for (size_t i = 0; i < doc_.main.wires.size(); i++) {
-		std::vector<Point> path = wirePath(doc_.main, doc_.library, doc_.main.wires[i]);
+	for (size_t i = 0; i < current().wires.size(); i++) {
+		std::vector<Point> path = wirePath(current(), doc_.library, current().wires[i]);
 		for (size_t k = 1; k < path.size(); k++) {
 			ImVec2 a{static_cast<float>(path[k - 1].x), static_cast<float>(path[k - 1].y)};
 			ImVec2 b{static_cast<float>(path[k].x), static_cast<float>(path[k].y)};
@@ -413,14 +665,18 @@ void Editor::mousePressed(sf::Mouse::Button button, ImVec2 screen, bool shift) {
 	}
 
 	if (mode_ == Mode::Placing) {
+		if (placeKind_ == Kind::Chip && !canPlace(placeProps_.chip)) {
+			mode_ = Mode::Idle;
+			return;
+		}
 		logic::Props props = placeProps_;
-		ComponentSpec spec = logic::builtinSpec(placeKind_, props);
 		Component probe{0, placeKind_, {}, placeRotation_, {}, props};
+		ComponentSpec spec = specOf(probe);
 		ImVec2 size = rotatedSize(probe, spec);
 		Point at = snapped({world.x - size.x / 2, world.y - size.y / 2});
 		beginChange();
-		int id = doc_.main.add(placeKind_, at.x, at.y, props);
-		doc_.main.find(id)->rotation = placeRotation_;
+		int id = current().add(placeKind_, at.x, at.y, props);
+		current().find(id)->rotation = placeRotation_;
 		changed();
 		if (!shift) {
 			mode_ = Mode::Idle;
@@ -449,7 +705,7 @@ void Editor::mousePressed(sf::Mouse::Button button, ImVec2 screen, bool shift) {
 
 	int id = componentAt(world);
 	if (id >= 0) {
-		Component* c = doc_.main.find(id);
+		Component* c = current().find(id);
 		selectedWire_ = -1;
 		pressedComponent_ = id;
 		if (isInteractive(*c) && !shift) {
@@ -506,7 +762,7 @@ void Editor::mouseMoved(ImVec2 screen) {
 	case Mode::Pressing:
 		if (dragged_) {
 			// Dragging a switch moves it
-			Component* c = doc_.main.find(pressedComponent_);
+			Component* c = current().find(pressedComponent_);
 			if (c && c->kind == Kind::Button) {
 				interact(*c, mouseWorld(), false);
 			}
@@ -526,12 +782,12 @@ void Editor::mouseMoved(ImVec2 screen) {
 			break;
 		}
 		for (int id : selected_) {
-			if (Component* c = doc_.main.find(id)) {
+			if (Component* c = current().find(id)) {
 				c->pos.x += dx;
 				c->pos.y += dy;
 			}
 		}
-		for (Wire& w : doc_.main.wires) {
+		for (Wire& w : current().wires) {
 			if (selected_.contains(w.from.component) && selected_.contains(w.to.component)) {
 				for (Point& b : w.bends) {
 					b.x += dx;
@@ -540,6 +796,7 @@ void Editor::mouseMoved(ImVec2 screen) {
 			}
 		}
 		moved_ = total;
+		findJunctions();
 		break;
 	}
 	default:
@@ -565,25 +822,23 @@ void Editor::mouseReleased(sf::Mouse::Button button, ImVec2 screen) {
 	if (button != sf::Mouse::Button::Left) {
 		return;
 	}
+	if (mode_ == Mode::Panning) {
+		// The left button let go while panning: a drag under the panning ends here
+		if (beforePan_ == Mode::Moving || beforePan_ == Mode::Pressing || beforePan_ == Mode::Selecting ||
+		    beforePan_ == Mode::WirePressed) {
+			endGesture(false);
+		}
+		return;
+	}
 	switch (mode_) {
 	case Mode::Moving:
-		if (moved_.x != 0 || moved_.y != 0) {
-			undo_.push_back(std::move(beforeMove_));
-			if (undo_.size() > MAX_UNDO) {
-				undo_.erase(undo_.begin());
-			}
-			redo_.clear();
-			modified_ = true;
-			// Positions matter inside chips only, but rebuild anyway so pin nets stay in step
-			changed();
-		}
-		mode_ = Mode::Idle;
+		endGesture(false); // the move becomes an undo step
 		break;
 	case Mode::WirePressed:
 		mode_ = Mode::Idle;
 		break;
 	case Mode::Pressing:
-		if (Component* c = doc_.main.find(pressedComponent_)) {
+		if (Component* c = current().find(pressedComponent_)) {
 			interact(*c, world, false);
 			selected_ = {pressedComponent_};
 		}
@@ -592,7 +847,7 @@ void Editor::mouseReleased(sf::Mouse::Button button, ImVec2 screen) {
 	case Mode::Selecting: {
 		ImVec2 lo{std::min(world.x, pressWorld_.x), std::min(world.y, pressWorld_.y)};
 		ImVec2 hi{std::max(world.x, pressWorld_.x), std::max(world.y, pressWorld_.y)};
-		for (const Component& c : doc_.main.components) {
+		for (const Component& c : current().components) {
 			ComponentSpec spec = specOf(c);
 			ImVec2 size = rotatedSize(c, spec);
 			float x = static_cast<float>(c.pos.x), y = static_cast<float>(c.pos.y);
@@ -623,8 +878,8 @@ void Editor::finishWire(PinRef end) {
 	if (end == wireStart_) {
 		return;
 	}
-	const Component* a = doc_.main.find(wireStart_.component);
-	const Component* b = doc_.main.find(end.component);
+	const Component* a = current().find(wireStart_.component);
+	const Component* b = current().find(end.component);
 	if (a == nullptr || b == nullptr) {
 		mode_ = Mode::Idle;
 		return;
@@ -635,20 +890,49 @@ void Editor::finishWire(PinRef end) {
 		std::swap(wire.from, wire.to);
 		std::ranges::reverse(wire.bends);
 	}
+	if (wire.bends.empty()) {
+		// Keep the new wire off the wires of other signals (the ones of its two ends may touch it)
+		int netA = compiled_.net(wire.from.component, wire.from.pin);
+		int netB = compiled_.net(wire.to.component, wire.to.pin);
+		std::vector<std::vector<Point>> others;
+		for (const Wire& w : current().wires) {
+			int net = compiled_.net(w.from.component, w.from.pin);
+			if (net < 0 || (net != netA && net != netB)) {
+				others.push_back(wirePath(current(), doc_.library, w));
+			}
+		}
+		std::vector<Point> pins;
+		for (const Component& c : current().components) {
+			ComponentSpec spec = specOf(c);
+			for (size_t i = 0; i < spec.pins.size(); i++) {
+				int net = compiled_.net(c.id, static_cast<int>(i));
+				if (net < 0 || (net != netA && net != netB)) {
+					pins.push_back(pinPosition(c, spec, static_cast<int>(i)));
+				}
+			}
+		}
+		Point from = pinPosition(*a, specOf(*a), wireStart_.pin);
+		Point to = pinPosition(*b, specOf(*b), end.pin);
+		std::vector<Point> bends = routeAround(from, to, others, pins);
+		if (wire.from.component != wireStart_.component || wire.from.pin != wireStart_.pin) {
+			std::ranges::reverse(bends); // the wire was turned around
+		}
+		wire.bends = std::move(bends);
+	}
 	beginChange();
-	doc_.main.wires.push_back(std::move(wire));
+	current().wires.push_back(std::move(wire));
 	wireBends_.clear();
 	mode_ = Mode::Idle;
 	changed();
 }
 
 void Editor::startBranch(int index, ImVec2 world) {
-	if (index < 0 || index >= static_cast<int>(doc_.main.wires.size())) {
+	if (index < 0 || index >= static_cast<int>(current().wires.size())) {
 		mode_ = Mode::Idle;
 		return;
 	}
-	const Wire& wire = doc_.main.wires[static_cast<size_t>(index)];
-	std::vector<Point> path = wirePath(doc_.main, doc_.library, wire);
+	const Wire& wire = current().wires[static_cast<size_t>(index)];
+	std::vector<Point> path = wirePath(current(), doc_.library, wire);
 	if (path.size() < 2) {
 		mode_ = Mode::Idle;
 		return;
@@ -749,20 +1033,20 @@ bool Editor::keyPressed(const sf::Event::KeyPressed& key) {
 }
 
 void Editor::fitView() {
-	if (doc_.main.components.empty()) {
+	if (current().components.empty()) {
 		camera_.zoom = 1.f;
 		camera_.offset = {canvasMin_.x + 2 * GRID, canvasMin_.y + 2 * GRID};
 		return;
 	}
 	float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
-	for (const Component& c : doc_.main.components) {
+	for (const Component& c : current().components) {
 		ImVec2 size = rotatedSize(c, specOf(c));
 		x0 = std::min(x0, static_cast<float>(c.pos.x));
 		y0 = std::min(y0, static_cast<float>(c.pos.y) - 1.f); // room for labels
 		x1 = std::max(x1, static_cast<float>(c.pos.x) + size.x);
 		y1 = std::max(y1, static_cast<float>(c.pos.y) + size.y);
 	}
-	for (const Wire& w : doc_.main.wires) {
+	for (const Wire& w : current().wires) {
 		for (Point b : w.bends) {
 			x0 = std::min(x0, static_cast<float>(b.x));
 			y0 = std::min(y0, static_cast<float>(b.y));
@@ -817,7 +1101,7 @@ void Editor::stepEvent() {
 }
 
 void Editor::resetSimulation() {
-	rebuild(false);
+	rebuild(Restart::PowerOn, false);
 }
 
 void Editor::runTicks(logic::Tick ticks) {
@@ -829,7 +1113,14 @@ void Editor::runTicks(logic::Tick ticks) {
 void Editor::draw(ImDrawList* list) {
 	list->PushClipRect(canvasMin_, canvasMax_, true);
 	drawGrid(list, camera_, canvasMin_, canvasMax_);
-	const Circuit& circuit = doc_.main;
+	const Circuit& circuit = current();
+
+	// Wires of different signals on top of each other: an orange halo under them
+	if (mode_ != Mode::Moving) {
+		for (const Segment& s : overlaps_) {
+			drawWire(list, camera_, {s.a, s.b}, withAlpha(colors::WARNING, 0.85f), 0.55f);
+		}
+	}
 
 	for (size_t i = 0; i < circuit.wires.size(); i++) {
 		const Wire& w = circuit.wires[i];
@@ -868,7 +1159,7 @@ void Editor::draw(ImDrawList* list) {
 	}
 	if (mode_ == Mode::Placing) {
 		Component ghost{0, placeKind_, {}, placeRotation_, {}, placeProps_};
-		ComponentSpec spec = logic::builtinSpec(placeKind_, placeProps_);
+		ComponentSpec spec = specOf(ghost);
 		ImVec2 size = rotatedSize(ghost, spec);
 		ghost.pos = snapped({world.x - size.x / 2, world.y - size.y / 2});
 		Look look;
@@ -886,6 +1177,11 @@ void Editor::draw(ImDrawList* list) {
 			Point p = pinPosition(*c, specOf(*c), pin->pin);
 			list->AddCircle(camera_.toScreen(p), camera_.scale() * 0.3f, colors::SELECTED, 0, 2.f);
 		}
+	}
+	if (!editPath_.empty()) {
+		// Inside a chip: a frame around the canvas (the breadcrumbs say which chip)
+		list->AddRect({canvasMin_.x + 1.5f, canvasMin_.y + 1.5f}, {canvasMax_.x - 1.5f, canvasMax_.y - 1.5f},
+		              withAlpha(colors::SELECTED, 0.7f), 0.f, 0, 3.f);
 	}
 	list->PopClipRect();
 }
@@ -910,9 +1206,10 @@ std::vector<Point> gridPoints(const std::vector<Point>& path) {
 
 } // namespace
 
-void Editor::drawJunctions(ImDrawList* list) const {
+void Editor::findJunctions() {
 	// Wires from the same output that run together and then split get a dot where they split
-	const Circuit& circuit = doc_.main;
+	const Circuit& circuit = current();
+	junctions_.clear();
 	std::map<std::pair<int, int>, std::vector<std::vector<Point>>> bySource;
 	for (const Wire& w : circuit.wires) {
 		bySource[{w.from.component, w.from.pin}].push_back(gridPoints(wirePath(circuit, doc_.library, w)));
@@ -927,12 +1224,18 @@ void Editor::drawJunctions(ImDrawList* list) const {
 					same++;
 				}
 				if (same > 1 && same < a.size() && same < b.size()) {
-					Value v = pinValue(source.first, source.second);
-					float r = camera_.scale() * (v.width > 1 ? 0.22f : 0.17f);
-					list->AddCircleFilled(camera_.toScreen(a[same - 1]), r, valueColor(v));
+					junctions_.push_back({a[same - 1], PinRef{source.first, source.second}});
 				}
 			}
 		}
+	}
+}
+
+void Editor::drawJunctions(ImDrawList* list) const {
+	for (const auto& [at, source] : junctions_) {
+		Value v = pinValue(source.component, source.pin);
+		float r = camera_.scale() * (v.width > 1 ? 0.22f : 0.17f);
+		list->AddCircleFilled(camera_.toScreen(at), r, valueColor(v));
 	}
 }
 
@@ -943,7 +1246,7 @@ std::string Editor::hoverText() const {
 		return {};
 	}
 	if (std::optional<PinRef> pin = pinAt(world)) {
-		const Component* c = doc_.main.find(pin->component);
+		const Component* c = current().find(pin->component);
 		ComponentSpec spec = specOf(*c);
 		const logic::PinSpec& p = spec.pins[static_cast<size_t>(pin->pin)];
 		Value v = pinValue(pin->component, pin->pin);
@@ -957,7 +1260,7 @@ std::string Editor::hoverText() const {
 	}
 	int id = componentAt(world);
 	if (id >= 0) {
-		const Component* c = doc_.main.find(id);
+		const Component* c = current().find(id);
 		for (const logic::Diagnostic& d : compiled_.diagnostics) {
 			if (d.component == id) {
 				return std::format("{}: {}", logic::info(c->kind).name, d.message);
@@ -965,6 +1268,9 @@ std::string Editor::hoverText() const {
 		}
 		std::string name(c->kind == Kind::Chip ? c->props.chip : std::string(logic::info(c->kind).name));
 		return std::format("{} - {}", name, logic::info(c->kind).tooltip);
+	}
+	if (mode_ != Mode::Moving && overlapAt(world) >= 0) {
+		return "Wires of different signals lie on top of each other here: they are not connected";
 	}
 	return {};
 }
@@ -985,8 +1291,8 @@ void Editor::propertiesPanel() {
 			if (ImGui::Button("Delete  (Del)")) {
 				deleteSelection();
 			}
-		} else if (selectedWire_ >= 0 && selectedWire_ < static_cast<int>(doc_.main.wires.size())) {
-			const Wire& w = doc_.main.wires[static_cast<size_t>(selectedWire_)];
+		} else if (selectedWire_ >= 0 && selectedWire_ < static_cast<int>(current().wires.size())) {
+			const Wire& w = current().wires[static_cast<size_t>(selectedWire_)];
 			Value v = pinValue(w.from.component, w.from.pin);
 			ImGui::Text("Wire");
 			ImGui::TextDisabled("Value: %s", v.binary().c_str());
@@ -996,6 +1302,8 @@ void Editor::propertiesPanel() {
 			if (ImGui::Button("Delete  (Del)")) {
 				deleteSelection();
 			}
+		} else if (!editPath_.empty()) {
+			chipPanel();
 		} else {
 			ImGui::TextDisabled("Nothing selected");
 			ImGui::Spacing();
@@ -1006,13 +1314,28 @@ void Editor::propertiesPanel() {
 		return;
 	}
 
-	Component* c = doc_.main.find(*selected_.begin());
+	Component* c = current().find(*selected_.begin());
 	if (c == nullptr) {
 		return;
 	}
 	const logic::KindInfo& kind = logic::info(c->kind);
 	ImGui::Text("%s", c->kind == Kind::Chip ? c->props.chip.c_str() : std::string(kind.name).c_str());
 	ImGui::TextDisabled("%s", std::string(kind.tooltip).c_str());
+	if (c->kind == Kind::Chip) {
+		const logic::ChipDef* def = doc_.library.find(c->props.chip);
+		if (def != nullptr && !def->description.empty()) {
+			ImGui::TextWrapped("%s", def->description.c_str());
+		}
+		ImGui::BeginDisabled(def == nullptr);
+		if (ImGui::Button("Open chip")) {
+			std::string name = c->props.chip;
+			enterChip(name);
+			ImGui::EndDisabled();
+			return;
+		}
+		ImGui::EndDisabled();
+		ImGui::SetItemTooltip("Edit its inside (or double-click it); the changes apply to every instance");
+	}
 	ImGui::Spacing();
 
 	Component edited = *c;
@@ -1155,7 +1478,7 @@ void Editor::propertiesPanel() {
 		if (differs && !editSnapshot_) {
 			beginChange();
 			editSnapshot_ = true;
-			c = doc_.main.find(edited.id);
+			c = current().find(edited.id);
 		}
 		if (differs) {
 			ComponentSpec before = specOf(*c);
@@ -1167,6 +1490,59 @@ void Editor::propertiesPanel() {
 			}
 			modified_ = true;
 		}
+	}
+}
+
+void Editor::chipPanel() {
+	const std::string here = editPath_.back();
+	ImGui::Text("Chip %s", here.c_str());
+	int uses = logic::countInstances(doc_, here);
+	ImGui::TextDisabled("Used %d time%s", uses, uses == 1 ? "" : "s");
+	ImGui::TextWrapped("Its input and output pins are the pins of the chip, top to bottom. Click the "
+	                   "input pins to try it out. Changes apply to every instance.");
+	ImGui::Spacing();
+	ImGui::PushItemWidth(-90.f);
+
+	if (ImGui::InputText("Name", &chipName_, ImGuiInputTextFlags_EnterReturnsTrue) && chipName_ != here) {
+		logic::Document before = doc_;
+		if (logic::renameChip(doc_, here, chipName_)) {
+			pushUndo(std::move(before));
+			std::ranges::replace(editPath_, here, chipName_);
+		}
+	}
+	if (!ImGui::IsItemActive()) {
+		chipName_ = editPath_.back();
+	}
+	ImGui::SetItemTooltip("Press Enter to rename the chip (the name must be new)");
+
+	// Colour and description: one undo step per interaction
+	auto edit = [&]() -> logic::ChipDef& {
+		if (!editSnapshot_) {
+			beginChange();
+			editSnapshot_ = true;
+		}
+		return doc_.library.chips.find(editPath_.back())->second;
+	};
+	const logic::ChipDef& def = doc_.library.chips.find(editPath_.back())->second; // renamed above maybe
+	ImU32 current = parseColor(def.color, IM_COL32(52, 70, 104, 255));
+	float rgb[3] = {static_cast<float>(current & 255) / 255.f,
+	                static_cast<float>((current >> 8) & 255) / 255.f,
+	                static_cast<float>((current >> 16) & 255) / 255.f};
+	if (ImGui::ColorEdit3("Colour", rgb, ImGuiColorEditFlags_NoInputs)) {
+		edit().color = hexColor(rgb);
+	}
+	ImGui::TextDisabled("Description");
+	std::string description = def.description;
+	if (ImGui::InputTextMultiline("##description", &description, ImVec2{-1.f, 70.f})) {
+		edit().description = description;
+	}
+	ImGui::PopItemWidth();
+
+	ImGui::Spacing();
+	std::string back =
+	    std::format("Back to {}", editPath_.size() > 1 ? editPath_[editPath_.size() - 2] : "the circuit");
+	if (ImGui::Button(back.c_str())) {
+		leaveTo(editPath_.size() - 1);
 	}
 }
 

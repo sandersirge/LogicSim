@@ -33,14 +33,20 @@ ImU32 parseColor(const std::string& hex, ImU32 fallback) {
 	}
 }
 
-namespace {
-
-ImFont* canvasFont = nullptr;
-
 ImU32 withAlpha(ImU32 color, float alpha) {
 	ImU32 a = static_cast<ImU32>(static_cast<float>((color >> IM_COL32_A_SHIFT) & 255) * alpha);
 	return (color & ~IM_COL32_A_MASK) | (a << IM_COL32_A_SHIFT);
 }
+
+namespace {
+
+ImFont* canvasFont = nullptr;
+
+// Text sizes in pixels that keep the canvas readable when zoomed out: pin names smaller than
+// PIN_LABEL_PIXELS are left out; names, values, labels and notes are drawn at least this tall
+constexpr float PIN_LABEL_PIXELS = 9.f;
+constexpr float TITLE_PIXELS = 11.f;
+constexpr float NOTE_PIXELS = 14.f;
 
 ImU32 dim(ImU32 color, float factor) {
 	auto channel = [&](int shift) {
@@ -112,25 +118,49 @@ struct Painter {
 	void text(float x, float y, std::string_view s, float size, ImU32 color) const {
 		textAt(at(x, y), s, size, color);
 	}
-	void textAt(ImVec2 center, std::string_view s, float size, ImU32 color) const {
-		float pixels = px(size);
-		if (pixels < 6.f || s.empty()) {
-			return;
+	// A name or value that should stay readable when zoomed out: drawn at least TITLE_PIXELS tall
+	// as long as it fits in `width` grid units
+	void title(float x, float y, std::string_view s, float size, ImU32 color, float width) const {
+		textAt(at(x, y), s, size, color, 3.f, TITLE_PIXELS, px(width));
+	}
+	// Returns the height drawn in pixels (0 when left out). Text smaller than hideBelow pixels is
+	// left out; smaller than atLeast pixels it is drawn larger, but no wider than maxWidth pixels.
+	float textAt(ImVec2 center, std::string_view s, float size, ImU32 color, float hideBelow = 6.f,
+	             float atLeast = 0.f, float maxWidth = FLT_MAX) const {
+		float natural = px(size);
+		if (natural < hideBelow || s.empty()) {
+			return 0.f;
 		}
 		ImFont* font = canvasFont != nullptr ? canvasFont : ImGui::GetFont();
-		ImVec2 extent = font->CalcTextSizeA(pixels, FLT_MAX, 0.f, s.data(), s.data() + s.size());
+		auto measure = [&](float pixels) {
+			return font->CalcTextSizeA(pixels, FLT_MAX, 0.f, s.data(), s.data() + s.size());
+		};
+		float pixels = natural;
+		ImVec2 extent = measure(pixels);
+		if (atLeast > natural) {
+			ImVec2 large = measure(atLeast);
+			float fit = large.x > maxWidth ? atLeast * maxWidth / large.x : atLeast;
+			if (fit > natural) {
+				pixels = fit;
+				extent = measure(pixels);
+			}
+		}
+		if (pixels < 6.f) {
+			return 0.f;
+		}
 		list->AddText(font, pixels, ImVec2{center.x - extent.x / 2, center.y - extent.y / 2}, col(color),
 		              s.data(), s.data() + s.size());
+		return pixels;
 	}
 
-	// Pin names just inside the edge they sit on
+	// Pin names just inside the edge they sit on (left out when too small to read)
 	void pinLabels(float size = 0.5f) const {
 		for (const logic::PinSpec& p : spec.pins) {
 			float x = static_cast<float>(p.x), y = static_cast<float>(p.y);
 			float dx = p.x == 0 ? 1.f : p.x == spec.w ? -1.f : 0.f;
 			float dy = dx != 0.f ? 0.f : p.y == 0 ? 1.f : -1.f;
 			float inset = dx != 0.f ? 0.2f + size * 0.32f * static_cast<float>(p.name.size()) : 0.45f;
-			text(x + dx * inset, y + dy * inset, p.name, size, colors::MUTED);
+			textAt(at(x + dx * inset, y + dy * inset), p.name, size, colors::MUTED, PIN_LABEL_PIXELS);
 		}
 	}
 
@@ -281,8 +311,8 @@ void drawBody(const Painter& p, const Library& library) {
 	}
 	case Kind::Constant:
 		p.box(0.2f, 0.3f, w, h - 0.3f, colors::BODY);
-		p.text(1.1f, 1.f, bitsText(Value::of(c.props.value, c.props.width)), c.props.width > 4 ? 0.45f : 0.7f,
-		       colors::TEXT);
+		p.title(1.1f, 1.f, bitsText(Value::of(c.props.value, c.props.width)),
+		        c.props.width > 4 ? 0.45f : 0.7f, colors::TEXT, w - 0.3f);
 		break;
 	case Kind::Clock: {
 		Value v = p.pin("out");
@@ -326,7 +356,7 @@ void drawBody(const Painter& p, const Library& library) {
 		Value v = p.pin("in");
 		p.box(0.f, 0.3f, w, h - 0.3f, IM_COL32(26, 30, 38, 255), 0.2f);
 		std::string s = v.width == 1 ? v.binary() : v.hex() + " " + v.decimal();
-		p.text(w / 2, 1.f, s, v.width > 8 ? 0.42f : 0.55f, valueColor(v));
+		p.title(w / 2, 1.f, s, v.width > 8 ? 0.42f : 0.55f, valueColor(v), w - 0.2f);
 		break;
 	}
 	case Kind::SevenSegment:
@@ -358,30 +388,30 @@ void drawBody(const Painter& p, const Library& library) {
 	case Kind::Tunnel: {
 		Value v = p.pin("io");
 		p.polygon({{0.f, 1.f}, {0.7f, 0.35f}, {w, 0.35f}, {w, 1.65f}, {0.7f, 1.65f}}, colors::BODY);
-		p.text(1.8f, 1.f, c.props.text, 0.55f, valueColor(v));
+		p.title(1.8f, 1.f, c.props.text, 0.55f, valueColor(v), w - 0.7f);
 		break;
 	}
 	case Kind::Text:
 		if (p.look.selected || p.look.ghost) {
 			p.box(0.f, 0.f, w, h, IM_COL32(0, 0, 0, 0));
 		}
-		p.text(w / 2, h / 2, c.props.text, 0.7f, colors::TEXT);
+		p.textAt(p.at(w / 2, h / 2), c.props.text, 0.7f, colors::TEXT, 3.f, NOTE_PIXELS);
 		break;
 
 	case Kind::Mux:
 		p.polygon({{0.f, 0.f}, {w, 1.f}, {w, h - 1.f}, {0.f, h}}, colors::BODY);
-		p.text(w / 2, h / 2, "MUX", 0.6f, colors::TEXT);
+		p.title(w / 2, h / 2, "MUX", 0.6f, colors::TEXT, w - 0.6f);
 		p.pinLabels(0.48f);
 		break;
 	case Kind::Demux:
 		p.polygon({{0.f, 1.f}, {w, 0.f}, {w, h}, {0.f, h - 1.f}}, colors::BODY);
-		p.text(w / 2, h / 2, "DMX", 0.6f, colors::TEXT);
+		p.title(w / 2, h / 2, "DMX", 0.6f, colors::TEXT, w - 0.6f);
 		p.pinLabels(0.48f);
 		break;
 	case Kind::Decoder:
 	case Kind::PriorityEncoder:
 		p.box(0.f, 0.f, w, h, colors::BODY, 0.15f);
-		p.text(w / 2, 0.6f, c.kind == Kind::Decoder ? "DEC" : "PRI", 0.6f, colors::TEXT);
+		p.title(w / 2, 0.6f, c.kind == Kind::Decoder ? "DEC" : "PRI", 0.6f, colors::TEXT, w - 0.4f);
 		p.pinLabels(0.48f);
 		break;
 
@@ -389,7 +419,7 @@ void drawBody(const Painter& p, const Library& library) {
 		const logic::ChipDef* def = library.find(c.props.chip);
 		ImU32 tint = def ? parseColor(def->color, IM_COL32(52, 70, 104, 255)) : colors::ERROR;
 		p.box(0.f, 0.f, w, h, dim(tint, 0.55f), 0.2f);
-		p.text(w / 2, 0.55f, c.props.chip, 0.5f, colors::TEXT);
+		p.title(w / 2, 0.55f, c.props.chip, 0.5f, colors::TEXT, w - 0.4f);
 		p.pinLabels(0.5f);
 		break;
 	}
@@ -430,10 +460,10 @@ void drawBody(const Painter& p, const Library& library) {
 			break;
 		}
 		bool showsValue = c.kind == Kind::Register || c.kind == Kind::Counter;
-		p.text(w / 2, h / 2 - (showsValue ? 0.45f : 0.f), title, 0.6f, colors::TEXT);
+		p.title(w / 2, h / 2 - (showsValue ? 0.45f : 0.f), title, 0.6f, colors::TEXT, w - 0.6f);
 		if (showsValue) {
 			Value q = p.pin("Q");
-			p.text(w / 2, h / 2 + 0.45f, q.hex(), 0.6f, valueColor(q));
+			p.title(w / 2, h / 2 + 0.45f, q.hex(), 0.6f, valueColor(q), w - 0.6f);
 		}
 		p.pinLabels(0.5f);
 		p.clockMarks();
@@ -476,9 +506,11 @@ void drawComponent(ImDrawList* list, const Camera& camera, const Component& c, c
 	drawBody(painter, library);
 	painter.pins();
 	if (!c.label.empty() && c.kind != Kind::Text) {
+		// Above the part; zoomed out it is drawn larger and moved up so it does not cover the part
 		ImVec2 a = painter.at(0.f, 0.f), b = painter.at(painter.w(), painter.h());
-		ImVec2 top{(a.x + b.x) / 2, std::min(a.y, b.y) - painter.px(0.45f)};
-		painter.textAt(top, c.label, 0.55f, colors::TEXT);
+		float height = std::max(painter.px(0.55f), TITLE_PIXELS);
+		ImVec2 top{(a.x + b.x) / 2, std::min(a.y, b.y) - std::max(painter.px(0.45f), height * 0.6f)};
+		painter.textAt(top, c.label, 0.55f, colors::TEXT, 3.f, TITLE_PIXELS);
 	}
 }
 

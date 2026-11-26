@@ -82,6 +82,45 @@ void testNoZeroWidthGlitch() {
 	check(b.sim.lastChange(net) == before, "the XOR output never changed");
 }
 
+void testReplacedThenLater() {
+	// One switch reaches an XOR through buffers of 1, 1 and 2 ticks. When it flips, the XOR is
+	// scheduled twice for the same tick (the second replaces the first), then once more for the next
+	// tick before the first two come up. The replaced event must not show (no glitch), and settle()
+	// must wait for the last one.
+	Bench b;
+	int s = b.input(), x = buffer(b, 1), y = buffer(b, 1), z = buffer(b, 2);
+	int g = b.gate(Kind::Xor, 3), o = b.output();
+	b.wire(s, "out", x, "in");
+	b.wire(s, "out", y, "in");
+	b.wire(s, "out", z, "in");
+	b.wire(x, "out", g, "in0");
+	b.wire(y, "out", g, "in1");
+	b.wire(z, "out", g, "in2");
+	b.wire(g, "out", o, "in");
+	b.build();
+	b.settle();
+	check(b.get(o) == 0, "XOR of three 0s");
+	int net = b.compiled.net(o, 0);
+	b.set(s, 1);
+	std::string trace;
+	std::vector<Tick> changes;
+	Tick start = b.sim.now(), last = b.sim.lastChange(net);
+	for (int t = 0; t < 5; t++) {
+		b.sim.advance(1);
+		trace += b.read(o).binary();
+		if (b.sim.lastChange(net) != last) {
+			last = b.sim.lastChange(net);
+			changes.push_back(last - start);
+		}
+	}
+	check(trace == "00011", "XOR of 1, 1, 1 shows once all three arrive: " + trace);
+	check(changes.size() == 1, std::format("the output changed once ({} times)", changes.size()));
+
+	b.set(s, 0);
+	check(b.settle() == SettleResult::Stable && b.get(o) == 0, "settle waits for the last event");
+	check(b.sim.pendingEvents() == 0 && !b.sim.stepEvent(), "and nothing is left over");
+}
+
 void testNorLatch() {
 	Bench b;
 	int s = b.input(1, "S"), r = b.input(1, "R");
@@ -190,6 +229,7 @@ int main() {
 	testDelays();
 	testHazard();
 	testNoZeroWidthGlitch();
+	testReplacedThenLater();
 	testNorLatch();
 	testRingOscillator();
 	testClock();

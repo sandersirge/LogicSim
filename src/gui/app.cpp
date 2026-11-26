@@ -1,5 +1,6 @@
 #include "gui/app.hpp"
 
+#include "core/json_io.hpp"
 #include "gui/draw.hpp"
 
 #include <SFML/Graphics/Image.hpp>
@@ -11,6 +12,8 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <format>
 #include <initializer_list>
 
@@ -159,43 +162,77 @@ void App::guarded(std::function<void()> action) {
 	}
 }
 
+void App::showMessage(std::string text) {
+	message_ = std::move(text);
+	messageOpen_ = true;
+}
+
 void App::openFile(const std::filesystem::path& path) {
 	std::string error;
 	if (!editor_.open(path, error)) {
-		message_ = error;
-		messageOpen_ = true;
+		showMessage(error);
 		return;
 	}
 	dialogDir_ = path.parent_path();
 	if (!editor_.loadWarnings.empty()) {
-		message_ = "Some parts of the file were skipped:\n";
+		std::string text = "Some parts of the file were skipped:\n";
 		for (const std::string& w : editor_.loadWarnings) {
-			message_ += "  " + w + "\n";
+			text += "  " + w + "\n";
 		}
-		messageOpen_ = true;
+		showMessage(text);
 	}
+}
+
+void App::importChips(const std::filesystem::path& path) {
+	logic::LoadResult loaded = logic::loadFile(path);
+	if (!loaded.ok) {
+		showMessage(loaded.error);
+		return;
+	}
+	dialogDir_ = path.parent_path();
+	if (loaded.document.library.chips.empty()) {
+		showMessage(std::format("{} has no chips.", path.filename().string()));
+		return;
+	}
+	std::string text;
+	for (const std::string& line : editor_.importChips(loaded.document.library)) {
+		text += line + "\n";
+	}
+	for (const std::string& w : loaded.warnings) {
+		text += "  " + w + "\n";
+	}
+	showMessage(text);
 }
 
 void App::saveOrAsk() {
 	if (editor_.path().empty()) {
-		showFileDialog(true);
+		showFileDialog(FileTask::Save);
 		return;
 	}
 	std::string error;
 	if (!editor_.save(editor_.path(), error)) {
-		message_ = error;
-		messageOpen_ = true;
+		showMessage(error);
 	}
 }
 
-void App::showFileDialog(bool saving) {
+void App::showFileDialog(FileTask task) {
 	fileDialogOpen_ = true;
-	fileDialogSaving_ = saving;
+	fileTask_ = task;
 	if (!editor_.path().empty()) {
 		dialogDir_ = editor_.path().parent_path();
-		dialogName_ = editor_.path().filename().string();
-	} else {
-		dialogName_ = saving ? editor_.document().main.name + ".json" : "";
+	}
+	switch (task) {
+	case FileTask::Open:
+	case FileTask::ImportChips:
+		dialogName_.clear();
+		break;
+	case FileTask::Save:
+		dialogName_ = editor_.path().empty() ? editor_.document().main.name + ".json"
+		                                     : editor_.path().filename().string();
+		break;
+	case FileTask::ExportChips:
+		dialogName_ = "chips.json";
+		break;
 	}
 }
 
@@ -210,7 +247,26 @@ void App::fileDialog() {
 	if (!ImGui::BeginPopupModal("File", nullptr, ImGuiWindowFlags_NoSavedSettings)) {
 		return;
 	}
-	ImGui::Text("%s", fileDialogSaving_ ? "Save circuit" : "Open circuit");
+	bool saving = fileTask_ == FileTask::Save || fileTask_ == FileTask::ExportChips;
+	const char* title = "Open circuit";
+	const char* action = "Open";
+	switch (fileTask_) {
+	case FileTask::Open:
+		break;
+	case FileTask::Save:
+		title = "Save circuit";
+		action = "Save";
+		break;
+	case FileTask::ImportChips:
+		title = "Import the chips of a circuit or chip library file";
+		action = "Import";
+		break;
+	case FileTask::ExportChips:
+		title = "Export all chips as a chip library";
+		action = "Export";
+		break;
+	}
+	ImGui::Text("%s", title);
 	ImGui::TextDisabled("%s", dialogDir_.string().c_str());
 	if (ImGui::Button("Up") && dialogDir_.has_parent_path()) {
 		dialogDir_ = dialogDir_.parent_path();
@@ -257,32 +313,145 @@ void App::fileDialog() {
 	ImGui::SetNextItemWidth(-200.f);
 	bool enter = ImGui::InputText("##name", &dialogName_, ImGuiInputTextFlags_EnterReturnsTrue);
 	ImGui::SameLine();
-	if (ImGui::Button(fileDialogSaving_ ? "Save" : "Open", {90.f, 0.f}) || enter) {
+	if (ImGui::Button(action, {90.f, 0.f}) || enter) {
 		if (!dialogName_.empty()) {
 			chosen = dialogDir_ / dialogName_;
 		}
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Cancel", {90.f, 0.f}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+	if (ImGui::Button("Cancel", {90.f, 0.f}) ||
+	    (ImGui::IsKeyPressed(ImGuiKey_Escape) && !ImGui::IsPopupOpen("Replace file"))) {
 		ImGui::CloseCurrentPopup();
 	}
+	bool done = false;
 	if (!chosen.empty()) {
-		ImGui::CloseCurrentPopup();
-		if (fileDialogSaving_) {
+		if (saving) {
 			if (chosen.extension() != ".json") {
 				chosen += ".json";
 			}
-			std::string saveError;
-			if (!editor_.save(chosen, saveError)) {
-				message_ = saveError;
-				messageOpen_ = true;
+			std::error_code e;
+			bool current = fileTask_ == FileTask::Save && chosen == editor_.path();
+			if (!current && std::filesystem::exists(chosen, e)) {
+				replacePath_ = chosen;
+				ImGui::OpenPopup("Replace file");
+			} else {
+				saveTo(chosen);
+				done = true;
 			}
-			dialogDir_ = chosen.parent_path();
+		} else if (fileTask_ == FileTask::ImportChips) {
+			importChips(chosen);
+			done = true;
 		} else {
 			openFile(chosen);
+			done = true;
 		}
 	}
+	ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+	if (ImGui::BeginPopupModal("Replace file", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		ImGui::Text("%s already exists. Replace it?", replacePath_.filename().string().c_str());
+		ImGui::Spacing();
+		if (ImGui::Button("Replace", {110.f, 0.f})) {
+			ImGui::CloseCurrentPopup();
+			saveTo(replacePath_);
+			done = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", {110.f, 0.f}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+	if (done) {
+		ImGui::CloseCurrentPopup();
+	}
 	ImGui::EndPopup();
+}
+
+void App::saveTo(const std::filesystem::path& path) {
+	std::string error;
+	bool ok = fileTask_ == FileTask::ExportChips
+	              ? logic::saveFile(path, logic::saveLibrary(editor_.document().library), error)
+	              : editor_.save(path, error);
+	if (!ok) {
+		showMessage(error);
+	}
+	dialogDir_ = path.parent_path();
+}
+void App::chipDialog() {
+	if (chipDialogOpen_) {
+		ImGui::OpenPopup("New chip");
+		chipDialogOpen_ = false;
+	}
+	ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+	if (!ImGui::BeginPopupModal("New chip", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+	ImGui::PushTextWrapPos(420.f);
+	ImGui::TextWrapped("The selected parts become a chip. Its input and output pins are the pins of the "
+	                   "chip (top to bottom, named by their labels). The circuit itself stays as it is; "
+	                   "place the chip from the toolbox.");
+	ImGui::PopTextWrapPos();
+	ImGui::Spacing();
+	if (ImGui::IsWindowAppearing()) {
+		ImGui::SetKeyboardFocusHere();
+	}
+	ImGui::SetNextItemWidth(260.f);
+	bool enter = ImGui::InputText("Name", &newChipName_, ImGuiInputTextFlags_EnterReturnsTrue);
+	ImGui::ColorEdit3("Colour", newChipColor_, ImGuiColorEditFlags_NoInputs);
+	ImGui::InputTextMultiline("Description", &newChipDescription_, ImVec2{260.f, 60.f});
+	if (!newChipError_.empty()) {
+		ImGui::TextColored(ImVec4{0.95f, 0.4f, 0.4f, 1.f}, "%s", newChipError_.c_str());
+	}
+	ImGui::Spacing();
+	if (ImGui::Button("Create", {110.f, 0.f}) || enter) {
+		auto channel = [](float v) { return static_cast<int>(std::lround(std::clamp(v, 0.f, 1.f) * 255.f)); };
+		std::string color = std::format("#{:02x}{:02x}{:02x}", channel(newChipColor_[0]),
+		                                channel(newChipColor_[1]), channel(newChipColor_[2]));
+		newChipError_ = editor_.createChip(newChipName_, color, newChipDescription_);
+		if (newChipError_.empty()) {
+			ImGui::CloseCurrentPopup();
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel", {110.f, 0.f}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::EndPopup();
+}
+
+void App::breadcrumbs(ImVec2 at) {
+	const std::vector<std::string>& path = editor_.editPath();
+	if (path.empty()) {
+		return;
+	}
+	ImGui::SetNextWindowPos(at);
+	ImGui::SetNextWindowBgAlpha(0.92f);
+	ImGui::Begin("Breadcrumbs", nullptr,
+	             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+	                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+	                 ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
+	// Each level above the chip being edited is a button that goes back to it
+	size_t target = path.size();
+	std::string main = editor_.document().main.name.empty() ? "Circuit" : editor_.document().main.name;
+	if (ImGui::SmallButton(main.c_str())) {
+		target = 0;
+	}
+	for (size_t i = 0; i < path.size(); i++) {
+		ImGui::SameLine();
+		ImGui::TextDisabled(">");
+		ImGui::SameLine();
+		if (i + 1 == path.size()) {
+			ImGui::Text("%s", path[i].c_str());
+		} else if (ImGui::SmallButton(std::format("{}##level{}", path[i], i).c_str())) {
+			target = i + 1;
+		}
+	}
+	ImGui::SameLine();
+	ImGui::TextDisabled("   editing a chip: changes apply to every instance");
+	ImGui::End();
+	if (target < path.size()) {
+		editor_.leaveTo(target);
+	}
 }
 
 void App::confirmDialog() {
@@ -337,7 +506,7 @@ void App::menuBar() {
 			guarded([this] { editor_.newDocument(); });
 		}
 		if (ImGui::MenuItem("Open...", "Ctrl+O")) {
-			guarded([this] { showFileDialog(false); });
+			guarded([this] { showFileDialog(FileTask::Open); });
 		}
 		if (ImGui::BeginMenu("Examples")) {
 			std::error_code error;
@@ -363,8 +532,17 @@ void App::menuBar() {
 			saveOrAsk();
 		}
 		if (ImGui::MenuItem("Save as...", "Ctrl+Shift+S")) {
-			showFileDialog(true);
+			showFileDialog(FileTask::Save);
 		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Import chips...")) {
+			showFileDialog(FileTask::ImportChips);
+		}
+		ImGui::SetItemTooltip("Add the chips of another circuit or chip library file");
+		if (ImGui::MenuItem("Export chips...", nullptr, false, !editor_.document().library.chips.empty())) {
+			showFileDialog(FileTask::ExportChips);
+		}
+		ImGui::SetItemTooltip("Save all chips of this circuit as a chip library");
 		ImGui::Separator();
 		if (ImGui::MenuItem("Quit", "Ctrl+Q")) {
 			guarded([this] { window_.close(); });
@@ -474,6 +652,19 @@ void App::toolbar(float y) {
 		ImGui::SameLine();
 		ImGui::TextColored(ImVec4{0.96f, 0.72f, 0.38f, 1.f}, "Does not settle (oscillating)");
 	}
+	// Exit at the right end; asks first when there are unsaved changes
+	const float exitWidth = 80.f;
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+	                     std::max(0.f, ImGui::GetContentRegionAvail().x - exitWidth));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.62f, 0.17f, 0.17f, 1.f});
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.80f, 0.23f, 0.22f, 1.f});
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.92f, 0.31f, 0.28f, 1.f});
+	if (ImGui::Button("Exit", {exitWidth, 0.f})) {
+		guarded([this] { window_.close(); });
+	}
+	ImGui::PopStyleColor(3);
+	ImGui::SetItemTooltip("Close LogicSim  (Ctrl+Q)");
 	ImGui::End();
 }
 
@@ -504,6 +695,69 @@ void App::toolbox(float y, float height) {
 			column++;
 		}
 	}
+
+	// Custom chips: made from a selection, placed like any part, opened to edit their inside
+	if (ImGui::CollapsingHeader("Chips", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::BeginDisabled(editor_.selection().empty());
+		if (ImGui::Button("New chip from selection...", {-1.f, 0.f})) {
+			newChipName_.clear();
+			newChipDescription_.clear();
+			newChipError_.clear();
+			chipDialogOpen_ = true;
+		}
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip("Select a circuit with its input and output pins: they become the pins of "
+			                  "the chip, top to bottom");
+		}
+		const auto& chips = editor_.document().library.chips;
+		if (chips.empty()) {
+			ImGui::TextDisabled("No chips yet");
+		}
+		std::string open, remove;
+		for (const auto& [name, chip] : chips) {
+			bool placeable = editor_.canPlace(name);
+			ImU32 tint = parseColor(chip.color, IM_COL32(52, 70, 104, 255));
+			ImVec4 color = ImGui::ColorConvertU32ToFloat4(tint);
+			ImGui::PushStyleColor(ImGuiCol_Button,
+			                      ImVec4{color.x * 0.6f, color.y * 0.6f, color.z * 0.6f, 1.f});
+			ImGui::BeginDisabled(!placeable);
+			if (ImGui::Button(name.c_str(), {-1.f, 0.f})) {
+				editor_.startPlacingChip(name);
+			}
+			ImGui::EndDisabled();
+			ImGui::PopStyleColor();
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				std::string tip = chip.description.empty() ? name : chip.description;
+				tip += placeable ? "\nRight click: open, delete"
+				                 : "\nCannot go here: a chip cannot contain itself";
+				ImGui::SetTooltip("%s", tip.c_str());
+			}
+			if (ImGui::BeginPopupContextItem(name.c_str())) {
+				if (ImGui::MenuItem("Open chip")) {
+					open = name;
+				}
+				int uses = logic::countInstances(editor_.document(), name);
+				bool inUse =
+				    uses > 0 || std::ranges::find(editor_.editPath(), name) != editor_.editPath().end();
+				if (ImGui::MenuItem("Delete chip", nullptr, false, !inUse)) {
+					remove = name;
+				}
+				if (inUse) {
+					ImGui::SetItemTooltip("Only an unused chip can be deleted (used %d time%s)", uses,
+					                      uses == 1 ? "" : "s");
+				}
+				ImGui::EndPopup();
+			}
+		}
+		if (!open.empty()) {
+			editor_.leaveTo(0); // the toolbox opens a chip from the main circuit
+			editor_.enterChip(open);
+		}
+		if (!remove.empty()) {
+			editor_.deleteChip(remove);
+		}
+	}
 	ImGui::End();
 }
 
@@ -517,14 +771,24 @@ void App::properties(float y, float height) {
 
 	const logic::Compiled& compiled = editor_.compiled();
 	size_t errors = std::ranges::count_if(compiled.diagnostics, &logic::Diagnostic::error);
-	if (errors > 0) {
+	size_t overlaps = editor_.overlaps().size();
+	if (errors > 0 || overlaps > 0) {
 		ImGui::Spacing();
 		ImGui::Separator();
+	}
+	if (errors > 0) {
 		ImGui::TextColored(ImVec4{0.95f, 0.4f, 0.4f, 1.f}, "%zu problem%s in the circuit", errors,
 		                   errors == 1 ? "" : "s");
 		for (const logic::Diagnostic& d : compiled.diagnostics) {
 			ImGui::BulletText("%s", d.message.c_str());
 		}
+	}
+	if (overlaps > 0) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{0.96f, 0.59f, 0.16f, 1.f});
+		ImGui::TextWrapped("Wires of different signals lie on top of each other in %zu place%s (shown in "
+		                   "orange). They look connected but are not; move one of them.",
+		                   overlaps, overlaps == 1 ? "" : "s");
+		ImGui::PopStyleColor();
 	}
 	ImGui::End();
 }
@@ -559,10 +823,10 @@ bool App::appKey(const sf::Event::KeyPressed& key) {
 		guarded([this] { editor_.newDocument(); });
 		return true;
 	case Key::O:
-		guarded([this] { showFileDialog(false); });
+		guarded([this] { showFileDialog(FileTask::Open); });
 		return true;
 	case Key::S:
-		key.shift ? showFileDialog(true) : saveOrAsk();
+		key.shift ? showFileDialog(FileTask::Save) : saveOrAsk();
 		return true;
 	case Key::Q:
 		guarded([this] { window_.close(); });
@@ -605,11 +869,19 @@ int App::run(const Options& options) {
 				}
 			} else if (const auto* press = event->getIf<sf::Event::MouseButtonPressed>()) {
 				if (!io.WantCaptureMouse) {
-					editor_.mousePressed(
-					    press->button,
-					    {static_cast<float>(press->position.x), static_cast<float>(press->position.y)},
-					    sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ||
-					        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift));
+					ImVec2 at{static_cast<float>(press->position.x), static_cast<float>(press->position.y)};
+					editor_.mousePressed(press->button, at,
+					                     sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ||
+					                         sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift));
+					if (press->button == sf::Mouse::Button::Left) {
+						sf::Vector2i distance = press->position - lastClickAt_;
+						bool twice = lastClick_.restart().asSeconds() < 0.4f && std::abs(distance.x) <= 4 &&
+						             std::abs(distance.y) <= 4;
+						lastClickAt_ = twice ? sf::Vector2i{-100, -100} : press->position;
+						if (twice) {
+							editor_.doubleClicked(at);
+						}
+					}
 				}
 			} else if (const auto* release = event->getIf<sf::Event::MouseButtonReleased>()) {
 				editor_.mouseReleased(release->button, {static_cast<float>(release->position.x),
@@ -637,10 +909,12 @@ int App::run(const Options& options) {
 		properties(panelsTop, panelsHeight);
 		statusBar();
 		fileDialog();
+		chipDialog();
 		confirmDialog();
 		messageDialog();
 
 		editor_.setCanvas({TOOLBOX_WIDTH, panelsTop}, {size.x - PROPERTIES_WIDTH, size.y - STATUS_HEIGHT});
+		breadcrumbs({TOOLBOX_WIDTH + 10.f, panelsTop + 8.f});
 		if (fitPending && frames >= 1) {
 			editor_.fitView();
 			fitPending = false;

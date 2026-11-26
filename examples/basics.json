@@ -19,7 +19,7 @@
 			{"id": 13, "type": "nor", "x": 28, "y": 7},
 			{"id": 14, "type": "led", "x": 38, "y": 3, "label": "Q"},
 			{"id": 15, "type": "led", "x": 38, "y": 8, "label": "Qn", "props": {"color": "#ffb030"}},
-			{"id": 16, "type": "text", "x": 27, "y": 12, "props": {"text": "SR latch from NOR gates"}},
+			{"id": 16, "type": "text", "x": 25, "y": 12, "props": {"text": "SR latch from NOR gates"}},
 
 			{"id": 20, "type": "clock", "x": 22, "y": 17, "label": "clock"},
 			{"id": 21, "type": "counter", "x": 28, "y": 17},

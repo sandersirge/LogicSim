@@ -130,6 +130,21 @@ void testPinNets() {
 	      "chip pins in order: inputs then outputs");
 }
 
+void testTextSize() {
+	// A text note's box grows with its text, so all of it can be clicked
+	Props p = defaultProps(Kind::Text);
+	ComponentSpec small = builtinSpec(Kind::Text, p);
+	p.text = "A much longer note about the circuit";
+	ComponentSpec wide = builtinSpec(Kind::Text, p);
+	p.text = "Three\nlines\nhere";
+	ComponentSpec tall = builtinSpec(Kind::Text, p);
+	check(small.w >= 2 && small.h == 2 && small.pins.empty(), "a short note is small");
+	check(wide.w >= 10 && wide.h == 2, std::format("a long note is wide ({})", wide.w));
+	check(tall.h == 4 && tall.w < small.w + 2, "each line adds a row");
+	p.text = "äöüõ";
+	check(builtinSpec(Kind::Text, p).w == small.w, "characters are counted, not UTF-8 bytes");
+}
+
 } // namespace
 
 int main() {
@@ -140,5 +155,6 @@ int main() {
 	testOptionalPins();
 	testChipProblems();
 	testPinNets();
+	testTextSize();
 	return report("compile_test");
 }

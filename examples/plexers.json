@@ -1,0 +1,257 @@
+{
+	"chips": {},
+	"circuit": {
+		"components": [
+			{
+				"id": 1,
+				"props": {
+					"selectBits": 2
+				},
+				"type": "mux",
+				"x": 8,
+				"y": 0
+			},
+			{
+				"id": 2,
+				"label": "D0",
+				"type": "switch",
+				"x": 0,
+				"y": 0
+			},
+			{
+				"id": 3,
+				"label": "D1",
+				"type": "switch",
+				"x": 0,
+				"y": 3
+			},
+			{
+				"id": 4,
+				"label": "D2",
+				"type": "switch",
+				"x": 0,
+				"y": 6
+			},
+			{
+				"id": 5,
+				"label": "D3",
+				"type": "switch",
+				"x": 0,
+				"y": 9
+			},
+			{
+				"id": 6,
+				"label": "OUT",
+				"type": "led",
+				"x": 16,
+				"y": 2
+			},
+			{
+				"id": 7,
+				"label": "SEL",
+				"props": {
+					"width": 2
+				},
+				"type": "input_pin",
+				"x": 0,
+				"y": 14
+			},
+			{
+				"id": 8,
+				"props": {
+					"selectBits": 2
+				},
+				"type": "decoder",
+				"x": 20,
+				"y": 12
+			},
+			{
+				"id": 9,
+				"label": "Y0",
+				"type": "led",
+				"x": 30,
+				"y": 10
+			},
+			{
+				"id": 10,
+				"label": "Y1",
+				"type": "led",
+				"x": 30,
+				"y": 13
+			},
+			{
+				"id": 11,
+				"label": "Y2",
+				"type": "led",
+				"x": 30,
+				"y": 16
+			},
+			{
+				"id": 12,
+				"label": "Y3",
+				"type": "led",
+				"x": 30,
+				"y": 19
+			},
+			{
+				"id": 13,
+				"props": {
+					"text": "SEL picks the input the multiplexer passes to OUT,"
+				},
+				"type": "text",
+				"x": 0,
+				"y": 23
+			},
+			{
+				"id": 14,
+				"props": {
+					"text": "and the output of the decoder that is 1."
+				},
+				"type": "text",
+				"x": 0,
+				"y": 25
+			}
+		],
+		"name": "Multiplexer and decoder",
+		"wires": [
+			{
+				"from": [
+					2,
+					"out"
+				],
+				"to": [
+					1,
+					"d0"
+				]
+			},
+			{
+				"from": [
+					3,
+					"out"
+				],
+				"to": [
+					1,
+					"d1"
+				]
+			},
+			{
+				"bends": [
+					[
+						6,
+						7
+					],
+					[
+						6,
+						4
+					]
+				],
+				"from": [
+					4,
+					"out"
+				],
+				"to": [
+					1,
+					"d2"
+				]
+			},
+			{
+				"from": [
+					5,
+					"out"
+				],
+				"to": [
+					1,
+					"d3"
+				]
+			},
+			{
+				"from": [
+					1,
+					"out"
+				],
+				"to": [
+					6,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						10,
+						15
+					]
+				],
+				"from": [
+					7,
+					"out"
+				],
+				"to": [
+					1,
+					"sel"
+				]
+			},
+			{
+				"from": [
+					7,
+					"out"
+				],
+				"to": [
+					8,
+					"sel"
+				]
+			},
+			{
+				"from": [
+					8,
+					"o0"
+				],
+				"to": [
+					9,
+					"in"
+				]
+			},
+			{
+				"from": [
+					8,
+					"o1"
+				],
+				"to": [
+					10,
+					"in"
+				]
+			},
+			{
+				"from": [
+					8,
+					"o2"
+				],
+				"to": [
+					11,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						26,
+						17
+					],
+					[
+						26,
+						20
+					]
+				],
+				"from": [
+					8,
+					"o3"
+				],
+				"to": [
+					12,
+					"in"
+				]
+			}
+		]
+	},
+	"format": "logicsim",
+	"version": 1
+}

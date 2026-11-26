@@ -51,4 +51,20 @@ std::vector<Point> wirePath(const Circuit& circuit, const Library& library, cons
 
 float distanceToSegment(ImVec2 p, ImVec2 a, ImVec2 b);
 
+struct Segment {
+	Point a, b;
+};
+
+// Stretches where wires of different signals run on top of each other along a grid line: they
+// look connected but are not. paths[i] is the route of wire i (see wirePath), nets[i] its signal.
+std::vector<Segment> wireOverlaps(const std::vector<std::vector<Point>>& paths, const std::vector<int>& nets);
+
+// The bends for a new wire from pin `from` to pin `to` that was drawn without any: empty when the
+// usual route is fine, else a route through another column that stays off the wires of other
+// signals (`others`): it does not run along them, has no corner on them and they have none on it.
+// It does not pass through the `avoid` points either (pins of other signals). Empty as well when
+// no column works.
+std::vector<Point> routeAround(Point from, Point to, const std::vector<std::vector<Point>>& others,
+                               const std::vector<Point>& avoid = {});
+
 } // namespace gui

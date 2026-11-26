@@ -144,6 +144,8 @@ if(BUILD_TESTING)
                        src/gui/draw.cpp ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp)
         target_include_directories(editor_test PRIVATE ${imgui_SOURCE_DIR}/misc/cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests)
         target_link_libraries(editor_test PRIVATE logicsim_core ImGui-SFML::ImGui-SFML SFML::Graphics)
+        target_compile_definitions(editor_test PRIVATE
+            LOGICSIM_EXAMPLES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/examples")
         logicsim_warnings(editor_test)
         copy_runtime_dlls(editor_test)
         add_test(NAME editor_test COMMAND editor_test)

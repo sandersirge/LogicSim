@@ -22,12 +22,15 @@ inline constexpr ImU32 ZERO = IM_COL32(36, 110, 52, 255);
 inline constexpr ImU32 ONE = IM_COL32(90, 235, 115, 255);
 inline constexpr ImU32 UNKNOWN = IM_COL32(85, 125, 235, 255);
 inline constexpr ImU32 PARTLY = IM_COL32(200, 170, 80, 255);
+inline constexpr ImU32 WARNING = IM_COL32(245, 150, 40, 255);
 } // namespace colors
 
 // Colour of a wire or pin carrying this value
 ImU32 valueColor(logic::Value value);
 // A colour from "#RRGGBB" (or the fallback)
 ImU32 parseColor(const std::string& hex, ImU32 fallback);
+// The colour with its opacity multiplied by alpha (0..1)
+ImU32 withAlpha(ImU32 color, float alpha);
 
 struct Look {
 	bool selected = false;

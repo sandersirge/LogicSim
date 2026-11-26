@@ -310,8 +310,20 @@ ComponentSpec builtinSpec(Kind kind, const Props& p) {
 	}
 	case Tunnel:
 		return {3, 2, {in("io", p.width, 0, 1)}};
-	case Text:
-		return {4, 2, {}};
+	case Text: {
+		// Big enough for the text (drawn 0.7 units tall, on average under 0.3 units per character)
+		// so all of it can be clicked
+		int lines = 1, longest = 0, length = 0;
+		for (char ch : p.text) {
+			if (ch == '\n') {
+				lines++;
+				length = 0;
+			} else if ((static_cast<unsigned char>(ch) & 0xC0) != 0x80) { // UTF-8: count characters
+				longest = std::max(longest, ++length);
+			}
+		}
+		return {std::max(2, (longest * 3 + 9) / 10 + 1), std::max(2, lines + 1), {}};
+	}
 
 	case Mux:
 	case Demux:

@@ -125,7 +125,7 @@
    {
     "id": 17,
     "type": "text",
-    "x": 30,
+    "x": 18,
     "y": 0,
     "props": {
      "text": "LOAD on: a CLK press loads D.   LOAD off: a CLK press shifts SI > Q0 > Q1 > Q2 > Q3"

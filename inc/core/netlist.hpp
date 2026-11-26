@@ -23,6 +23,10 @@ struct Prim {
 	std::vector<int> out; // net of each output pin
 	int delay = 1;
 	int owner = -1; // id of the top-level component it came from (a chip instance for inner parts)
+	// The component ids from the top level down through the chips to the component it came from
+	// (empty for the constants the compiler adds on unconnected optional pins). It identifies the
+	// primitive across recompiles, so an edited circuit can keep its state.
+	std::vector<int> path;
 
 	// State (reset by resetState)
 	Value source;              // switch, button, input pin, constant: the value it drives

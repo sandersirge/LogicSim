@@ -1,6 +1,7 @@
 # Development plan
 
-What is done and what is left. The full original plan had seven milestones; 1–4 are done.
+What is done and what is left. The full original plan had seven milestones; 1–5 and the polish
+rounds are done. Next is milestone 6, the release.
 
 ## Done
 
@@ -10,35 +11,9 @@ What is done and what is left. The full original plan had seven milestones; 1–
 | 2. Circuits | Circuit document, netlist compiler (chips flattened, tunnels, splitters, error messages), JSON files |
 | 3. Sequential parts | Flip-flops, latches, register, counter, RAM, ROM, multiplexer, demultiplexer, decoder, priority encoder, all tested |
 | 4. Editor (MVP) | Canvas with pan/zoom, placing, wiring (with bends and branches), moving, rotating, undo/redo, copy/paste, live simulation with run/pause/step/speed, properties panel, open/save, examples |
-
-## Next: fixes and polish
-
-1. **Keep the simulation state when editing.** Moving or rotating a part recompiles the circuit
-   and restarts the simulation, so flip-flops, registers, counters and RAM go back to 0. Moving
-   and rotating do not change the netlist and should not recompile. A real change (a new wire or
-   part) should carry over the stored values of the parts that still exist.
-2. **Text notes:** size the box to the text, so long notes can be clicked and selected.
-3. **Overlapping wires:** wires of different nets lying on the same grid line look like one wire.
-   Warn about it (or highlight them), or keep new wires from running along existing ones.
-4. **Line endings:** add a `.gitattributes` (`* text=auto`, LF for sources) so git stops warning
-   about CRLF on every commit.
-5. **Readability when zoomed out:** pin labels on boxes become unreadable at the fit-to-window
-   zoom of large circuits; hide them below a size or draw them larger.
-6. **A more obvious Exit button:** a red "Exit" button at the right end of the toolbar (as in
-   AlgorithmVisualizer), next to File > Quit and Ctrl+Q; it asks before discarding unsaved changes.
-
-## Milestone 5: custom chips in the editor and more examples
-
-- **Create chip from selection:** the selected Input pin / Output pin components become the chip's
-  pins (top to bottom); ask for a name and colour; add it to the circuit's library.
-- **Chips in the toolbox** (a "Chips" section) to place instances.
-- **Edit a chip:** open its inside circuit with a breadcrumb back to the parent; changes update
-  every instance. Reject a chip that would contain itself (the engine already does).
-- **Import / export chip libraries** (File menu); the JSON format already has `saveLibrary`.
-- **Examples:** half adder → full adder → 4-bit adder → 4-bit ALU (add, subtract, AND, OR, with
-  flags) as nested chips, D latch and master-slave D flip-flop from gates, ring oscillator,
-  4-bit counter on a 7-segment display, multiplexer/decoder demo, register file, RAM read/write.
-  `examples_test` checks each one (the ALU exhaustively).
+| Fixes and polish | Editing keeps the simulation state (moving/rotating does not recompile; other edits carry stored values, RAM, clock phase and wire values over to the recompiled circuit, matched by component path; Reset powers on); text notes sized to their text; wires of different signals on top of each other highlighted in orange with a warning (examples checked by `editor_test`); `.gitattributes` with LF line endings; pin labels hidden and names/values/notes kept at a readable size when zoomed out; red Exit button in the toolbar |
+| Audit fixes | Undo/redo and other commands during a drag end it first (Esc takes it back); saving over an existing file asks; a new wire drawn without bends takes a column free of other signals' wires and pins; junction dots cached instead of recomputed every frame; text notes do not rotate; the simulator no longer applies (and double-counts) an event that was replaced at the same tick when a later one follows, which could end `settle()` early |
+| 5. Chips in the editor | New chip from selection (name, colour, description); a Chips section in the toolbox; double-click or Open chip edits its inside with breadcrumbs back, its inputs clickable to try it out; wires to instances follow renamed or moved pins; rename, colour, description and delete (unused chips); a chip cannot contain itself; File > Import / Export chips (name clashes renamed); examples: 4-bit ALU from nested adder chips, gate-level D latch and master-slave flip-flop, ring oscillator, counter on a 7-segment display, multiplexer/decoder, register file, RAM, each checked by `examples_test` (the ALU exhaustively) |
 
 ## Milestone 6: release
 
@@ -72,7 +47,7 @@ ground up in lessons of increasing difficulty.
 ### Course
 
 - **A Learn window** (Help > Learn, and a button in the toolbar): topics in order, each with its
-  lessons, a difficulty mark (1�3 dots) and the state of each lesson. Opening a lesson starts a
+  lessons, a difficulty mark (1�3 dots) and the state of each lesson. Opening a lesson starts a
   fresh canvas, possibly with parts already placed and locked (given inputs and outputs).
 - **Lessons are step by step.** A side panel shows the current step's explanation (text and
   small pictures/diagrams), the goal and a "Check" button. Steps are checked automatically

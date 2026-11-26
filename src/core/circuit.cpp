@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <format>
+#include <limits>
 #include <set>
 
 namespace logic {
@@ -136,6 +137,184 @@ bool connect(Circuit& circuit, const Library& library, int fromId, std::string_v
 	}
 	circuit.wires.push_back(Wire{PinRef{fromId, a}, PinRef{toId, b}, {}});
 	return true;
+}
+
+std::vector<int> portIds(const Circuit& circuit) {
+	ChipPorts ports = chipPorts(circuit);
+	std::vector<int> ids;
+	for (const std::vector<int>* list : {&ports.inputs, &ports.outputs}) {
+		for (int index : *list) {
+			ids.push_back(circuit.components[static_cast<size_t>(index)].id);
+		}
+	}
+	return ids;
+}
+
+namespace {
+
+// Every circuit of a document: the main one and the inside of each chip
+template <typename F>
+void forEachCircuit(Document& document, F f) {
+	f(document.main);
+	for (auto& [name, chip] : document.library.chips) {
+		f(chip.circuit);
+	}
+}
+
+bool sameChip(const ChipDef& a, const ChipDef& b) {
+	return a.color == b.color && a.description == b.description &&
+	       a.circuit.components == b.circuit.components && a.circuit.wires == b.circuit.wires;
+}
+
+} // namespace
+
+void remapChipPins(Document& document, std::string_view name, const std::vector<int>& before) {
+	const ChipDef* def = document.library.find(name);
+	if (def == nullptr) {
+		return;
+	}
+	std::vector<int> after = portIds(def->circuit);
+	if (after == before) {
+		return;
+	}
+	// Old pin index -> new pin index, -1 when the pin is gone
+	std::vector<int> moved(before.size(), -1);
+	for (size_t i = 0; i < before.size(); i++) {
+		auto it = std::ranges::find(after, before[i]);
+		if (it != after.end()) {
+			moved[i] = static_cast<int>(it - after.begin());
+		}
+	}
+	forEachCircuit(document, [&](Circuit& circuit) {
+		auto follow = [&](PinRef& ref) {
+			const Component* c = circuit.find(ref.component);
+			if (c == nullptr || c->kind != Kind::Chip || c->props.chip != name) {
+				return true;
+			}
+			if (ref.pin < 0 || ref.pin >= static_cast<int>(moved.size())) {
+				return false;
+			}
+			ref.pin = moved[static_cast<size_t>(ref.pin)];
+			return ref.pin >= 0;
+		};
+		std::erase_if(circuit.wires, [&](Wire& w) {
+			bool from = follow(w.from);
+			bool to = follow(w.to);
+			return !(from && to);
+		});
+	});
+}
+
+ChipDef chipFromSelection(const Circuit& circuit, const std::set<int>& ids) {
+	ChipDef chip;
+	Circuit& inside = chip.circuit;
+	Point min{std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
+	for (const Component& c : circuit.components) {
+		if (ids.contains(c.id)) {
+			min = {std::min(min.x, c.pos.x), std::min(min.y, c.pos.y)};
+		}
+	}
+	// A margin of 2 leaves room for the labels above the parts
+	Point shift{2 - min.x, 2 - min.y};
+	for (const Component& c : circuit.components) {
+		if (ids.contains(c.id)) {
+			Component copy = c;
+			copy.pos = {c.pos.x + shift.x, c.pos.y + shift.y};
+			inside.components.push_back(std::move(copy));
+			inside.nextId = std::max(inside.nextId, c.id + 1);
+		}
+	}
+	for (const Wire& w : circuit.wires) {
+		if (ids.contains(w.from.component) && ids.contains(w.to.component)) {
+			Wire copy = w;
+			for (Point& b : copy.bends) {
+				b = {b.x + shift.x, b.y + shift.y};
+			}
+			inside.wires.push_back(std::move(copy));
+		}
+	}
+	return chip;
+}
+
+int countInstances(const Document& document, std::string_view name) {
+	int count = 0;
+	auto countIn = [&](const Circuit& circuit) {
+		for (const Component& c : circuit.components) {
+			count += c.kind == Kind::Chip && c.props.chip == name ? 1 : 0;
+		}
+	};
+	countIn(document.main);
+	for (const auto& [chipName, chip] : document.library.chips) {
+		countIn(chip.circuit);
+	}
+	return count;
+}
+
+bool renameChip(Document& document, std::string_view from, const std::string& to) {
+	auto it = document.library.chips.find(from);
+	if (to.empty() || it == document.library.chips.end() || document.library.find(to) != nullptr) {
+		return false;
+	}
+	std::string old(from); // `from` may point into the key being replaced
+	auto node = document.library.chips.extract(it);
+	node.key() = to;
+	if (node.mapped().circuit.name == old) {
+		node.mapped().circuit.name = to;
+	}
+	document.library.chips.insert(std::move(node));
+	forEachCircuit(document, [&](Circuit& circuit) {
+		for (Component& c : circuit.components) {
+			if (c.kind == Kind::Chip && c.props.chip == old) {
+				c.props.chip = to;
+			}
+		}
+	});
+	return true;
+}
+
+std::vector<std::string> mergeLibrary(Library& into, const Library& from) {
+	std::vector<std::string> messages;
+	std::map<std::string, std::string, std::less<>> renamed; // imported name -> name in `into`
+	std::set<std::string, std::less<>> seen;
+	// Chips are added after the chips they use, so references to renamed chips can be updated
+	auto add = [&](auto& self, const std::string& name) -> void {
+		if (!seen.insert(name).second) {
+			return;
+		}
+		const ChipDef& def = from.chips.find(name)->second;
+		for (const Component& c : def.circuit.components) {
+			if (c.kind == Kind::Chip && from.find(c.props.chip) != nullptr) {
+				self(self, c.props.chip);
+			}
+		}
+		ChipDef copy = def;
+		for (Component& c : copy.circuit.components) {
+			if (auto it = renamed.find(c.props.chip); c.kind == Kind::Chip && it != renamed.end()) {
+				c.props.chip = it->second;
+			}
+		}
+		std::string target = name;
+		if (const ChipDef* existing = into.find(name)) {
+			if (sameChip(*existing, copy)) {
+				renamed[name] = name;
+				return;
+			}
+			for (int n = 2; into.find(target = std::format("{} ({})", name, n)) != nullptr; n++) {
+			}
+			messages.push_back(std::format(
+			    "A different chip called \"{}\" is already here; the imported one is called \"{}\"", name,
+			    target));
+		}
+		renamed[name] = target;
+		if (copy.circuit.name == name) {
+			copy.circuit.name = target;
+		}
+		into.chips[target] = std::move(copy);
+	};
+	for (const auto& [name, def] : from.chips) {
+		add(add, name);
+	}
+	return messages;
 }
 
 } // namespace logic

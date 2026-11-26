@@ -1,0 +1,241 @@
+{
+	"chips": {},
+	"circuit": {
+		"components": [
+			{
+				"id": 1,
+				"label": "clock",
+				"props": {
+					"period": 16
+				},
+				"type": "clock",
+				"x": 0,
+				"y": 3
+			},
+			{
+				"id": 2,
+				"label": "count",
+				"type": "counter",
+				"x": 6,
+				"y": 0
+			},
+			{
+				"id": 3,
+				"label": "RESET",
+				"type": "button",
+				"x": 2,
+				"y": 8
+			},
+			{
+				"id": 4,
+				"label": "segments",
+				"props": {
+					"data": [
+						63,
+						6,
+						91,
+						79,
+						102,
+						109,
+						125,
+						7,
+						127,
+						111,
+						119,
+						124,
+						57,
+						94,
+						121,
+						113
+					],
+					"width": 8
+				},
+				"type": "rom",
+				"x": 14,
+				"y": 0
+			},
+			{
+				"id": 5,
+				"props": {
+					"width": 8
+				},
+				"type": "splitter",
+				"x": 22,
+				"y": 0
+			},
+			{
+				"id": 6,
+				"label": "display",
+				"type": "seven_segment",
+				"x": 28,
+				"y": 0
+			},
+			{
+				"id": 7,
+				"label": "hex",
+				"type": "hex_display",
+				"x": 14,
+				"y": 6
+			},
+			{
+				"id": 8,
+				"props": {
+					"text": "A counter steps through 0-F. A ROM turns each number into the segments to light"
+				},
+				"type": "text",
+				"x": 0,
+				"y": 14
+			},
+			{
+				"id": 9,
+				"props": {
+					"text": "(bit 0 = a ... bit 6 = g); the hex digit shows the same number for comparison."
+				},
+				"type": "text",
+				"x": 0,
+				"y": 16
+			}
+		],
+		"name": "Counter on a display",
+		"wires": [
+			{
+				"from": [
+					1,
+					"out"
+				],
+				"to": [
+					2,
+					"CLK"
+				]
+			},
+			{
+				"bends": [
+					[
+						8,
+						9
+					]
+				],
+				"from": [
+					3,
+					"out"
+				],
+				"to": [
+					2,
+					"RST"
+				]
+			},
+			{
+				"from": [
+					2,
+					"Q"
+				],
+				"to": [
+					4,
+					"A"
+				]
+			},
+			{
+				"from": [
+					4,
+					"Q"
+				],
+				"to": [
+					5,
+					"in"
+				]
+			},
+			{
+				"from": [
+					5,
+					"0"
+				],
+				"to": [
+					6,
+					"a"
+				]
+			},
+			{
+				"from": [
+					5,
+					"1"
+				],
+				"to": [
+					6,
+					"b"
+				]
+			},
+			{
+				"from": [
+					5,
+					"2"
+				],
+				"to": [
+					6,
+					"c"
+				]
+			},
+			{
+				"from": [
+					5,
+					"3"
+				],
+				"to": [
+					6,
+					"d"
+				]
+			},
+			{
+				"from": [
+					5,
+					"4"
+				],
+				"to": [
+					6,
+					"e"
+				]
+			},
+			{
+				"from": [
+					5,
+					"5"
+				],
+				"to": [
+					6,
+					"f"
+				]
+			},
+			{
+				"from": [
+					5,
+					"6"
+				],
+				"to": [
+					6,
+					"g"
+				]
+			},
+			{
+				"from": [
+					5,
+					"7"
+				],
+				"to": [
+					6,
+					"dp"
+				]
+			},
+			{
+				"from": [
+					2,
+					"Q"
+				],
+				"to": [
+					7,
+					"in"
+				]
+			}
+		]
+	},
+	"format": "logicsim",
+	"version": 1
+}

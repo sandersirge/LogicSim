@@ -1,0 +1,2216 @@
+{
+	"chips": {
+		"4-bit ALU": {
+			"circuit": {
+				"components": [
+					{
+						"id": 1,
+						"label": "A",
+						"props": {
+							"width": 4
+						},
+						"type": "input_pin",
+						"x": 0,
+						"y": 0
+					},
+					{
+						"id": 2,
+						"label": "B",
+						"props": {
+							"width": 4
+						},
+						"type": "input_pin",
+						"x": 0,
+						"y": 4
+					},
+					{
+						"id": 3,
+						"label": "OP",
+						"props": {
+							"width": 2
+						},
+						"type": "input_pin",
+						"x": 0,
+						"y": 8
+					},
+					{
+						"id": 4,
+						"props": {
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 6,
+						"y": 0
+					},
+					{
+						"id": 5,
+						"props": {
+							"text": "B",
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 6,
+						"y": 4
+					},
+					{
+						"id": 6,
+						"props": {
+							"width": 2
+						},
+						"type": "splitter",
+						"x": 6,
+						"y": 8
+					},
+					{
+						"id": 7,
+						"props": {
+							"text": "OP",
+							"width": 2
+						},
+						"type": "tunnel",
+						"x": 4,
+						"y": 11
+					},
+					{
+						"id": 8,
+						"type": "not",
+						"x": 10,
+						"y": 11
+					},
+					{
+						"id": 9,
+						"type": "and",
+						"x": 16,
+						"y": 8
+					},
+					{
+						"id": 10,
+						"props": {
+							"text": "ARITH"
+						},
+						"type": "tunnel",
+						"x": 14,
+						"y": 14
+					},
+					{
+						"id": 11,
+						"props": {
+							"text": "SUB"
+						},
+						"type": "tunnel",
+						"x": 22,
+						"y": 9
+					},
+					{
+						"id": 12,
+						"props": {
+							"text": "SUB"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 24,
+						"y": 4
+					},
+					{
+						"id": 13,
+						"type": "merger",
+						"x": 30,
+						"y": 4
+					},
+					{
+						"id": 14,
+						"props": {
+							"width": 4
+						},
+						"type": "xor",
+						"x": 36,
+						"y": 0
+					},
+					{
+						"id": 15,
+						"props": {
+							"text": "B",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 24,
+						"y": 0
+					},
+					{
+						"id": 16,
+						"props": {
+							"text": "B'",
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 42,
+						"y": 1
+					},
+					{
+						"chip": "4-bit adder",
+						"id": 17,
+						"type": "chip",
+						"x": 52,
+						"y": 0
+					},
+					{
+						"id": 18,
+						"props": {
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 44,
+						"y": 0
+					},
+					{
+						"id": 19,
+						"props": {
+							"text": "B'",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 44,
+						"y": 3
+					},
+					{
+						"id": 20,
+						"props": {
+							"text": "SUB"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 44,
+						"y": 6
+					},
+					{
+						"id": 21,
+						"props": {
+							"text": "SUM",
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 62,
+						"y": 0
+					},
+					{
+						"id": 22,
+						"props": {
+							"text": "COUT"
+						},
+						"type": "tunnel",
+						"x": 62,
+						"y": 3
+					},
+					{
+						"id": 23,
+						"props": {
+							"width": 4
+						},
+						"type": "and",
+						"x": 52,
+						"y": 10
+					},
+					{
+						"id": 24,
+						"props": {
+							"width": 4
+						},
+						"type": "or",
+						"x": 52,
+						"y": 16
+					},
+					{
+						"id": 25,
+						"props": {
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 44,
+						"y": 10
+					},
+					{
+						"id": 26,
+						"props": {
+							"text": "B",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 44,
+						"y": 14
+					},
+					{
+						"id": 27,
+						"props": {
+							"text": "AND",
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 58,
+						"y": 11
+					},
+					{
+						"id": 28,
+						"props": {
+							"text": "OR",
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 58,
+						"y": 17
+					},
+					{
+						"id": 29,
+						"props": {
+							"selectBits": 2,
+							"width": 4
+						},
+						"type": "mux",
+						"x": 72,
+						"y": 0
+					},
+					{
+						"id": 30,
+						"props": {
+							"text": "SUM",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 66,
+						"y": 0
+					},
+					{
+						"id": 31,
+						"props": {
+							"text": "AND",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 66,
+						"y": 3
+					},
+					{
+						"id": 32,
+						"props": {
+							"text": "OR",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 66,
+						"y": 5
+					},
+					{
+						"id": 33,
+						"props": {
+							"text": "OP",
+							"width": 2
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 68,
+						"y": 9
+					},
+					{
+						"id": 34,
+						"props": {
+							"text": "Y",
+							"width": 4
+						},
+						"type": "tunnel",
+						"x": 78,
+						"y": 2
+					},
+					{
+						"id": 35,
+						"type": "splitter",
+						"x": 80,
+						"y": 10
+					},
+					{
+						"id": 36,
+						"props": {
+							"text": "Y",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 74,
+						"y": 10
+					},
+					{
+						"id": 37,
+						"props": {
+							"inputs": 4
+						},
+						"type": "nor",
+						"x": 86,
+						"y": 10
+					},
+					{
+						"id": 38,
+						"props": {
+							"text": "Z"
+						},
+						"type": "tunnel",
+						"x": 92,
+						"y": 12
+					},
+					{
+						"id": 39,
+						"props": {
+							"text": "Y3"
+						},
+						"type": "tunnel",
+						"x": 84,
+						"y": 18
+					},
+					{
+						"id": 40,
+						"props": {
+							"parts": [
+								3,
+								1
+							]
+						},
+						"type": "splitter",
+						"x": 80,
+						"y": 22
+					},
+					{
+						"id": 41,
+						"props": {
+							"parts": [
+								3,
+								1
+							]
+						},
+						"type": "splitter",
+						"x": 80,
+						"y": 26
+					},
+					{
+						"id": 42,
+						"props": {
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 74,
+						"y": 22
+					},
+					{
+						"id": 43,
+						"props": {
+							"text": "B'",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 74,
+						"y": 26
+					},
+					{
+						"id": 44,
+						"type": "xnor",
+						"x": 88,
+						"y": 22
+					},
+					{
+						"id": 45,
+						"type": "xor",
+						"x": 88,
+						"y": 28
+					},
+					{
+						"id": 46,
+						"props": {
+							"text": "Y3"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 82,
+						"y": 30
+					},
+					{
+						"id": 47,
+						"props": {
+							"inputs": 3
+						},
+						"type": "and",
+						"x": 96,
+						"y": 24
+					},
+					{
+						"id": 48,
+						"props": {
+							"text": "ARITH"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 90,
+						"y": 33
+					},
+					{
+						"id": 49,
+						"props": {
+							"text": "V"
+						},
+						"type": "tunnel",
+						"x": 102,
+						"y": 25
+					},
+					{
+						"id": 50,
+						"type": "and",
+						"x": 96,
+						"y": 36
+					},
+					{
+						"id": 51,
+						"props": {
+							"text": "COUT"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 90,
+						"y": 36
+					},
+					{
+						"id": 52,
+						"props": {
+							"text": "ARITH"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 90,
+						"y": 38
+					},
+					{
+						"id": 53,
+						"props": {
+							"text": "C"
+						},
+						"type": "tunnel",
+						"x": 102,
+						"y": 37
+					},
+					{
+						"id": 54,
+						"label": "Y",
+						"props": {
+							"width": 4
+						},
+						"type": "output_pin",
+						"x": 112,
+						"y": 0
+					},
+					{
+						"id": 55,
+						"props": {
+							"text": "Y",
+							"width": 4
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 106,
+						"y": 0
+					},
+					{
+						"id": 56,
+						"label": "Z",
+						"type": "output_pin",
+						"x": 112,
+						"y": 4
+					},
+					{
+						"id": 57,
+						"props": {
+							"text": "Z"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 106,
+						"y": 4
+					},
+					{
+						"id": 58,
+						"label": "C",
+						"type": "output_pin",
+						"x": 112,
+						"y": 8
+					},
+					{
+						"id": 59,
+						"props": {
+							"text": "C"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 106,
+						"y": 8
+					},
+					{
+						"id": 60,
+						"label": "N",
+						"type": "output_pin",
+						"x": 112,
+						"y": 12
+					},
+					{
+						"id": 61,
+						"props": {
+							"text": "Y3"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 106,
+						"y": 12
+					},
+					{
+						"id": 62,
+						"label": "V",
+						"type": "output_pin",
+						"x": 112,
+						"y": 16
+					},
+					{
+						"id": 63,
+						"props": {
+							"text": "V"
+						},
+						"rotation": 2,
+						"type": "tunnel",
+						"x": 106,
+						"y": 16
+					}
+				],
+				"name": "4-bit ALU",
+				"wires": [
+					{
+						"from": [
+							1,
+							"out"
+						],
+						"to": [
+							4,
+							"io"
+						]
+					},
+					{
+						"from": [
+							2,
+							"out"
+						],
+						"to": [
+							5,
+							"io"
+						]
+					},
+					{
+						"from": [
+							3,
+							"out"
+						],
+						"to": [
+							6,
+							"in"
+						]
+					},
+					{
+						"from": [
+							3,
+							"out"
+						],
+						"to": [
+							7,
+							"io"
+						]
+					},
+					{
+						"from": [
+							6,
+							"1"
+						],
+						"to": [
+							8,
+							"in"
+						]
+					},
+					{
+						"from": [
+							6,
+							"0"
+						],
+						"to": [
+							9,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							8,
+							"out"
+						],
+						"to": [
+							9,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							8,
+							"out"
+						],
+						"to": [
+							10,
+							"io"
+						]
+					},
+					{
+						"from": [
+							9,
+							"out"
+						],
+						"to": [
+							11,
+							"io"
+						]
+					},
+					{
+						"from": [
+							12,
+							"io"
+						],
+						"to": [
+							13,
+							"0"
+						]
+					},
+					{
+						"from": [
+							12,
+							"io"
+						],
+						"to": [
+							13,
+							"1"
+						]
+					},
+					{
+						"from": [
+							12,
+							"io"
+						],
+						"to": [
+							13,
+							"2"
+						]
+					},
+					{
+						"from": [
+							12,
+							"io"
+						],
+						"to": [
+							13,
+							"3"
+						]
+					},
+					{
+						"from": [
+							15,
+							"io"
+						],
+						"to": [
+							14,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							13,
+							"out"
+						],
+						"to": [
+							14,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							14,
+							"out"
+						],
+						"to": [
+							16,
+							"io"
+						]
+					},
+					{
+						"from": [
+							18,
+							"io"
+						],
+						"to": [
+							17,
+							"A"
+						]
+					},
+					{
+						"from": [
+							19,
+							"io"
+						],
+						"to": [
+							17,
+							"B"
+						]
+					},
+					{
+						"bends": [
+							[
+								48,
+								7
+							],
+							[
+								48,
+								3
+							]
+						],
+						"from": [
+							20,
+							"io"
+						],
+						"to": [
+							17,
+							"Cin"
+						]
+					},
+					{
+						"from": [
+							17,
+							"S"
+						],
+						"to": [
+							21,
+							"io"
+						]
+					},
+					{
+						"from": [
+							17,
+							"Cout"
+						],
+						"to": [
+							22,
+							"io"
+						]
+					},
+					{
+						"from": [
+							25,
+							"io"
+						],
+						"to": [
+							23,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							25,
+							"io"
+						],
+						"to": [
+							24,
+							"in0"
+						]
+					},
+					{
+						"bends": [
+							[
+								48,
+								15
+							],
+							[
+								48,
+								13
+							]
+						],
+						"from": [
+							26,
+							"io"
+						],
+						"to": [
+							23,
+							"in1"
+						]
+					},
+					{
+						"bends": [
+							[
+								48,
+								15
+							],
+							[
+								48,
+								19
+							]
+						],
+						"from": [
+							26,
+							"io"
+						],
+						"to": [
+							24,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							23,
+							"out"
+						],
+						"to": [
+							27,
+							"io"
+						]
+					},
+					{
+						"from": [
+							24,
+							"out"
+						],
+						"to": [
+							28,
+							"io"
+						]
+					},
+					{
+						"from": [
+							30,
+							"io"
+						],
+						"to": [
+							29,
+							"d0"
+						]
+					},
+					{
+						"from": [
+							30,
+							"io"
+						],
+						"to": [
+							29,
+							"d1"
+						]
+					},
+					{
+						"from": [
+							31,
+							"io"
+						],
+						"to": [
+							29,
+							"d2"
+						]
+					},
+					{
+						"from": [
+							32,
+							"io"
+						],
+						"to": [
+							29,
+							"d3"
+						]
+					},
+					{
+						"bends": [
+							[
+								74,
+								10
+							]
+						],
+						"from": [
+							33,
+							"io"
+						],
+						"to": [
+							29,
+							"sel"
+						]
+					},
+					{
+						"from": [
+							29,
+							"out"
+						],
+						"to": [
+							34,
+							"io"
+						]
+					},
+					{
+						"from": [
+							36,
+							"io"
+						],
+						"to": [
+							35,
+							"in"
+						]
+					},
+					{
+						"from": [
+							35,
+							"0"
+						],
+						"to": [
+							37,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							35,
+							"1"
+						],
+						"to": [
+							37,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							35,
+							"2"
+						],
+						"to": [
+							37,
+							"in2"
+						]
+					},
+					{
+						"bends": [
+							[
+								83,
+								14
+							],
+							[
+								83,
+								15
+							]
+						],
+						"from": [
+							35,
+							"3"
+						],
+						"to": [
+							37,
+							"in3"
+						]
+					},
+					{
+						"from": [
+							37,
+							"out"
+						],
+						"to": [
+							38,
+							"io"
+						]
+					},
+					{
+						"from": [
+							35,
+							"3"
+						],
+						"to": [
+							39,
+							"io"
+						]
+					},
+					{
+						"from": [
+							42,
+							"io"
+						],
+						"to": [
+							40,
+							"in"
+						]
+					},
+					{
+						"from": [
+							43,
+							"io"
+						],
+						"to": [
+							41,
+							"in"
+						]
+					},
+					{
+						"from": [
+							40,
+							"3"
+						],
+						"to": [
+							44,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							41,
+							"3"
+						],
+						"to": [
+							44,
+							"in1"
+						]
+					},
+					{
+						"bends": [
+							[
+								84,
+								24
+							],
+							[
+								84,
+								29
+							]
+						],
+						"from": [
+							40,
+							"3"
+						],
+						"to": [
+							45,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							46,
+							"io"
+						],
+						"to": [
+							45,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							44,
+							"out"
+						],
+						"to": [
+							47,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							45,
+							"out"
+						],
+						"to": [
+							47,
+							"in1"
+						]
+					},
+					{
+						"bends": [
+							[
+								95,
+								34
+							],
+							[
+								95,
+								27
+							]
+						],
+						"from": [
+							48,
+							"io"
+						],
+						"to": [
+							47,
+							"in2"
+						]
+					},
+					{
+						"from": [
+							47,
+							"out"
+						],
+						"to": [
+							49,
+							"io"
+						]
+					},
+					{
+						"from": [
+							51,
+							"io"
+						],
+						"to": [
+							50,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							52,
+							"io"
+						],
+						"to": [
+							50,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							50,
+							"out"
+						],
+						"to": [
+							53,
+							"io"
+						]
+					},
+					{
+						"from": [
+							55,
+							"io"
+						],
+						"to": [
+							54,
+							"in"
+						]
+					},
+					{
+						"from": [
+							57,
+							"io"
+						],
+						"to": [
+							56,
+							"in"
+						]
+					},
+					{
+						"from": [
+							59,
+							"io"
+						],
+						"to": [
+							58,
+							"in"
+						]
+					},
+					{
+						"from": [
+							61,
+							"io"
+						],
+						"to": [
+							60,
+							"in"
+						]
+					},
+					{
+						"from": [
+							63,
+							"io"
+						],
+						"to": [
+							62,
+							"in"
+						]
+					}
+				]
+			},
+			"color": "#8a5ab5",
+			"description": "OP 0: A + B, 1: A - B, 2: A and B, 3: A or B. Flags: Z zero, C carry (1 = no borrow when subtracting), N negative, V signed overflow"
+		},
+		"4-bit adder": {
+			"circuit": {
+				"components": [
+					{
+						"id": 1,
+						"label": "A",
+						"props": {
+							"width": 4
+						},
+						"type": "input_pin",
+						"x": 0,
+						"y": 0
+					},
+					{
+						"id": 2,
+						"label": "B",
+						"props": {
+							"width": 4
+						},
+						"type": "input_pin",
+						"x": 0,
+						"y": 10
+					},
+					{
+						"id": 3,
+						"label": "Cin",
+						"type": "input_pin",
+						"x": 0,
+						"y": 20
+					},
+					{
+						"id": 4,
+						"type": "splitter",
+						"x": 6,
+						"y": 0
+					},
+					{
+						"id": 5,
+						"type": "splitter",
+						"x": 6,
+						"y": 10
+					},
+					{
+						"id": 6,
+						"type": "merger",
+						"x": 34,
+						"y": 0
+					},
+					{
+						"id": 7,
+						"label": "S",
+						"props": {
+							"width": 4
+						},
+						"type": "output_pin",
+						"x": 40,
+						"y": 0
+					},
+					{
+						"id": 8,
+						"label": "Cout",
+						"type": "output_pin",
+						"x": 40,
+						"y": 19
+					},
+					{
+						"chip": "Full adder",
+						"id": 9,
+						"type": "chip",
+						"x": 16,
+						"y": 0
+					},
+					{
+						"chip": "Full adder",
+						"id": 10,
+						"type": "chip",
+						"x": 16,
+						"y": 6
+					},
+					{
+						"chip": "Full adder",
+						"id": 11,
+						"type": "chip",
+						"x": 16,
+						"y": 12
+					},
+					{
+						"chip": "Full adder",
+						"id": 12,
+						"type": "chip",
+						"x": 16,
+						"y": 18
+					}
+				],
+				"name": "4-bit adder",
+				"wires": [
+					{
+						"from": [
+							1,
+							"out"
+						],
+						"to": [
+							4,
+							"in"
+						]
+					},
+					{
+						"from": [
+							2,
+							"out"
+						],
+						"to": [
+							5,
+							"in"
+						]
+					},
+					{
+						"bends": [
+							[
+								24,
+								2
+							],
+							[
+								24,
+								5
+							],
+							[
+								15,
+								5
+							],
+							[
+								15,
+								9
+							]
+						],
+						"from": [
+							9,
+							"Cout"
+						],
+						"to": [
+							10,
+							"Cin"
+						]
+					},
+					{
+						"bends": [
+							[
+								24,
+								8
+							],
+							[
+								24,
+								11
+							],
+							[
+								15,
+								11
+							],
+							[
+								15,
+								15
+							]
+						],
+						"from": [
+							10,
+							"Cout"
+						],
+						"to": [
+							11,
+							"Cin"
+						]
+					},
+					{
+						"bends": [
+							[
+								24,
+								14
+							],
+							[
+								24,
+								17
+							],
+							[
+								15,
+								17
+							],
+							[
+								15,
+								21
+							]
+						],
+						"from": [
+							11,
+							"Cout"
+						],
+						"to": [
+							12,
+							"Cin"
+						]
+					},
+					{
+						"from": [
+							4,
+							"0"
+						],
+						"to": [
+							9,
+							"A"
+						]
+					},
+					{
+						"from": [
+							5,
+							"0"
+						],
+						"to": [
+							9,
+							"B"
+						]
+					},
+					{
+						"bends": [
+							[
+								11,
+								2
+							],
+							[
+								11,
+								7
+							]
+						],
+						"from": [
+							4,
+							"1"
+						],
+						"to": [
+							10,
+							"A"
+						]
+					},
+					{
+						"bends": [
+							[
+								11,
+								12
+							],
+							[
+								11,
+								8
+							]
+						],
+						"from": [
+							5,
+							"1"
+						],
+						"to": [
+							10,
+							"B"
+						]
+					},
+					{
+						"bends": [
+							[
+								13,
+								3
+							],
+							[
+								13,
+								13
+							]
+						],
+						"from": [
+							4,
+							"2"
+						],
+						"to": [
+							11,
+							"A"
+						]
+					},
+					{
+						"from": [
+							5,
+							"2"
+						],
+						"to": [
+							11,
+							"B"
+						]
+					},
+					{
+						"bends": [
+							[
+								10,
+								4
+							],
+							[
+								10,
+								19
+							]
+						],
+						"from": [
+							4,
+							"3"
+						],
+						"to": [
+							12,
+							"A"
+						]
+					},
+					{
+						"bends": [
+							[
+								11,
+								14
+							],
+							[
+								11,
+								20
+							]
+						],
+						"from": [
+							5,
+							"3"
+						],
+						"to": [
+							12,
+							"B"
+						]
+					},
+					{
+						"bends": [
+							[
+								14,
+								21
+							],
+							[
+								14,
+								3
+							]
+						],
+						"from": [
+							3,
+							"out"
+						],
+						"to": [
+							9,
+							"Cin"
+						]
+					},
+					{
+						"from": [
+							9,
+							"S"
+						],
+						"to": [
+							6,
+							"0"
+						]
+					},
+					{
+						"from": [
+							10,
+							"S"
+						],
+						"to": [
+							6,
+							"1"
+						]
+					},
+					{
+						"bends": [
+							[
+								27,
+								13
+							],
+							[
+								27,
+								3
+							]
+						],
+						"from": [
+							11,
+							"S"
+						],
+						"to": [
+							6,
+							"2"
+						]
+					},
+					{
+						"bends": [
+							[
+								29,
+								19
+							],
+							[
+								29,
+								4
+							]
+						],
+						"from": [
+							12,
+							"S"
+						],
+						"to": [
+							6,
+							"3"
+						]
+					},
+					{
+						"from": [
+							6,
+							"out"
+						],
+						"to": [
+							7,
+							"in"
+						]
+					},
+					{
+						"from": [
+							12,
+							"Cout"
+						],
+						"to": [
+							8,
+							"in"
+						]
+					}
+				]
+			},
+			"color": "#5a8fc5",
+			"description": "Adds two 4-bit numbers: four full adders with the carry rippling through"
+		},
+		"Full adder": {
+			"circuit": {
+				"components": [
+					{
+						"id": 1,
+						"label": "A",
+						"type": "input_pin",
+						"x": 0,
+						"y": 0
+					},
+					{
+						"id": 2,
+						"label": "B",
+						"type": "input_pin",
+						"x": 0,
+						"y": 3
+					},
+					{
+						"id": 3,
+						"label": "Cin",
+						"type": "input_pin",
+						"x": 0,
+						"y": 6
+					},
+					{
+						"chip": "Half adder",
+						"id": 4,
+						"type": "chip",
+						"x": 6,
+						"y": 0
+					},
+					{
+						"chip": "Half adder",
+						"id": 5,
+						"type": "chip",
+						"x": 16,
+						"y": 0
+					},
+					{
+						"id": 6,
+						"type": "or",
+						"x": 26,
+						"y": 4
+					},
+					{
+						"id": 7,
+						"label": "S",
+						"type": "output_pin",
+						"x": 34,
+						"y": 0
+					},
+					{
+						"id": 8,
+						"label": "Cout",
+						"type": "output_pin",
+						"x": 34,
+						"y": 5
+					}
+				],
+				"name": "Full adder",
+				"wires": [
+					{
+						"from": [
+							1,
+							"out"
+						],
+						"to": [
+							4,
+							"A"
+						]
+					},
+					{
+						"bends": [
+							[
+								4,
+								4
+							],
+							[
+								4,
+								2
+							]
+						],
+						"from": [
+							2,
+							"out"
+						],
+						"to": [
+							4,
+							"B"
+						]
+					},
+					{
+						"from": [
+							4,
+							"S"
+						],
+						"to": [
+							5,
+							"A"
+						]
+					},
+					{
+						"bends": [
+							[
+								14,
+								7
+							],
+							[
+								14,
+								2
+							]
+						],
+						"from": [
+							3,
+							"out"
+						],
+						"to": [
+							5,
+							"B"
+						]
+					},
+					{
+						"from": [
+							5,
+							"S"
+						],
+						"to": [
+							7,
+							"in"
+						]
+					},
+					{
+						"from": [
+							5,
+							"C"
+						],
+						"to": [
+							6,
+							"in0"
+						]
+					},
+					{
+						"bends": [
+							[
+								13,
+								2
+							],
+							[
+								13,
+								9
+							],
+							[
+								24,
+								9
+							],
+							[
+								24,
+								7
+							]
+						],
+						"from": [
+							4,
+							"C"
+						],
+						"to": [
+							6,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							6,
+							"out"
+						],
+						"to": [
+							8,
+							"in"
+						]
+					}
+				]
+			},
+			"color": "#4a7fb5",
+			"description": "Adds three bits (A, B and a carry in) with two half adders"
+		},
+		"Half adder": {
+			"circuit": {
+				"components": [
+					{
+						"id": 1,
+						"label": "A",
+						"type": "input_pin",
+						"x": 0,
+						"y": 0
+					},
+					{
+						"id": 2,
+						"label": "B",
+						"type": "input_pin",
+						"x": 0,
+						"y": 4
+					},
+					{
+						"id": 3,
+						"type": "xor",
+						"x": 8,
+						"y": 0
+					},
+					{
+						"id": 4,
+						"type": "and",
+						"x": 8,
+						"y": 6
+					},
+					{
+						"id": 5,
+						"label": "S",
+						"type": "output_pin",
+						"x": 16,
+						"y": 1
+					},
+					{
+						"id": 6,
+						"label": "C",
+						"type": "output_pin",
+						"x": 16,
+						"y": 7
+					}
+				],
+				"name": "Half adder",
+				"wires": [
+					{
+						"from": [
+							1,
+							"out"
+						],
+						"to": [
+							3,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							2,
+							"out"
+						],
+						"to": [
+							3,
+							"in1"
+						]
+					},
+					{
+						"bends": [
+							[
+								4,
+								1
+							],
+							[
+								4,
+								7
+							]
+						],
+						"from": [
+							1,
+							"out"
+						],
+						"to": [
+							4,
+							"in0"
+						]
+					},
+					{
+						"from": [
+							2,
+							"out"
+						],
+						"to": [
+							4,
+							"in1"
+						]
+					},
+					{
+						"from": [
+							3,
+							"out"
+						],
+						"to": [
+							5,
+							"in"
+						]
+					},
+					{
+						"from": [
+							4,
+							"out"
+						],
+						"to": [
+							6,
+							"in"
+						]
+					}
+				]
+			},
+			"color": "#3a6ea5",
+			"description": "S = A xor B, C = A and B: adds two bits"
+		}
+	},
+	"circuit": {
+		"components": [
+			{
+				"id": 1,
+				"label": "A",
+				"props": {
+					"width": 4
+				},
+				"type": "input_pin",
+				"x": 0,
+				"y": 0
+			},
+			{
+				"id": 2,
+				"label": "B",
+				"props": {
+					"width": 4
+				},
+				"type": "input_pin",
+				"x": 0,
+				"y": 3
+			},
+			{
+				"id": 3,
+				"label": "OP",
+				"props": {
+					"width": 2
+				},
+				"type": "input_pin",
+				"x": 0,
+				"y": 6
+			},
+			{
+				"chip": "4-bit ALU",
+				"id": 4,
+				"type": "chip",
+				"x": 10,
+				"y": 0
+			},
+			{
+				"id": 5,
+				"label": "Y",
+				"type": "hex_display",
+				"x": 26,
+				"y": -2
+			},
+			{
+				"id": 6,
+				"label": "Z",
+				"type": "led",
+				"x": 30,
+				"y": 6
+			},
+			{
+				"id": 7,
+				"label": "C",
+				"type": "led",
+				"x": 30,
+				"y": 9
+			},
+			{
+				"id": 8,
+				"label": "N",
+				"type": "led",
+				"x": 30,
+				"y": 12
+			},
+			{
+				"id": 9,
+				"label": "V",
+				"type": "led",
+				"x": 30,
+				"y": 15
+			},
+			{
+				"id": 10,
+				"props": {
+					"text": "OP: 0 = A + B, 1 = A - B, 2 = A AND B, 3 = A OR B"
+				},
+				"type": "text",
+				"x": 0,
+				"y": 18
+			},
+			{
+				"id": 11,
+				"props": {
+					"text": "Z: Y is 0, C: carry, N: Y is negative, V: signed overflow"
+				},
+				"type": "text",
+				"x": 0,
+				"y": 20
+			},
+			{
+				"id": 12,
+				"props": {
+					"text": "Open the ALU (double-click) to see how it is built from adder chips"
+				},
+				"type": "text",
+				"x": 0,
+				"y": 22
+			}
+		],
+		"name": "4-bit ALU",
+		"wires": [
+			{
+				"from": [
+					1,
+					"out"
+				],
+				"to": [
+					4,
+					"A"
+				]
+			},
+			{
+				"from": [
+					2,
+					"out"
+				],
+				"to": [
+					4,
+					"B"
+				]
+			},
+			{
+				"from": [
+					3,
+					"out"
+				],
+				"to": [
+					4,
+					"OP"
+				]
+			},
+			{
+				"from": [
+					4,
+					"Y"
+				],
+				"to": [
+					5,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						18,
+						2
+					],
+					[
+						18,
+						7
+					]
+				],
+				"from": [
+					4,
+					"Z"
+				],
+				"to": [
+					6,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						19,
+						3
+					],
+					[
+						19,
+						10
+					]
+				],
+				"from": [
+					4,
+					"C"
+				],
+				"to": [
+					7,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						20,
+						4
+					],
+					[
+						20,
+						13
+					]
+				],
+				"from": [
+					4,
+					"N"
+				],
+				"to": [
+					8,
+					"in"
+				]
+			},
+			{
+				"bends": [
+					[
+						21,
+						5
+					],
+					[
+						21,
+						16
+					]
+				],
+				"from": [
+					4,
+					"V"
+				],
+				"to": [
+					9,
+					"in"
+				]
+			}
+		]
+	},
+	"format": "logicsim",
+	"version": 1
+}

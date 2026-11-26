@@ -159,9 +159,9 @@ void componentsFromJson(const json& j, Circuit& circuit, std::vector<std::string
 			props.chip = jc.value("chip", std::string{});
 		}
 		sanitize(*kind, props);
-		circuit.components.push_back(Component{id, *kind, Point{jc.value("x", 0), jc.value("y", 0)},
-		                                       jc.value("rotation", 0) & 3, jc.value("label", std::string{}),
-		                                       std::move(props)});
+		int rotation = *kind == Kind::Text ? 0 : jc.value("rotation", 0) & 3; // notes never turn
+		circuit.components.push_back(Component{id, *kind, Point{jc.value("x", 0), jc.value("y", 0)}, rotation,
+		                                       jc.value("label", std::string{}), std::move(props)});
 		circuit.nextId = std::max(circuit.nextId, id + 1);
 	}
 }

@@ -192,7 +192,9 @@ private:
 			return;
 		}
 		stack_.push_back(c.props.chip);
+		path_.push_back(c.id);
 		instantiate(def->circuit, &nodes, who);
+		path_.pop_back();
 		stack_.pop_back();
 	}
 
@@ -202,6 +204,8 @@ private:
 		prim.props = c.props;
 		prim.delay = c.props.delay;
 		prim.owner = who;
+		prim.path = path_;
+		prim.path.push_back(c.id);
 		bool top = stack_.empty();
 		pending_.push_back(PendingPrim{std::move(prim), std::move(ins), std::move(outs)});
 		if (top) {
@@ -278,7 +282,8 @@ private:
 	std::vector<int> nodeNet_;
 	std::vector<PendingPrim> pending_;
 	std::vector<std::pair<int, int>> topPrims_;
-	std::vector<std::string> stack_;
+	std::vector<std::string> stack_; // names of the chips being expanded
+	std::vector<int> path_;          // ids of the chip instances being expanded
 	std::set<int> driven_;
 };
 
