@@ -1,0 +1,50 @@
+{
+	"format": "logicsim",
+	"version": 1,
+	"circuit": {
+		"name": "Basics",
+		"components": [
+			{"id": 1, "type": "switch", "x": 2, "y": 2, "label": "A"},
+			{"id": 2, "type": "switch", "x": 2, "y": 9, "label": "B", "props": {"value": 1}},
+			{"id": 3, "type": "and", "x": 8, "y": 2},
+			{"id": 4, "type": "or", "x": 8, "y": 8},
+			{"id": 5, "type": "xor", "x": 8, "y": 14},
+			{"id": 6, "type": "led", "x": 15, "y": 3, "label": "A AND B"},
+			{"id": 7, "type": "led", "x": 15, "y": 9, "label": "A OR B"},
+			{"id": 8, "type": "led", "x": 15, "y": 15, "label": "A XOR B", "props": {"color": "#40a0ff"}},
+
+			{"id": 10, "type": "switch", "x": 22, "y": 2, "label": "R"},
+			{"id": 11, "type": "switch", "x": 22, "y": 9, "label": "S"},
+			{"id": 12, "type": "nor", "x": 28, "y": 2},
+			{"id": 13, "type": "nor", "x": 28, "y": 7},
+			{"id": 14, "type": "led", "x": 38, "y": 3, "label": "Q"},
+			{"id": 15, "type": "led", "x": 38, "y": 8, "label": "Qn", "props": {"color": "#ffb030"}},
+			{"id": 16, "type": "text", "x": 27, "y": 12, "props": {"text": "SR latch from NOR gates"}},
+
+			{"id": 20, "type": "clock", "x": 22, "y": 17, "label": "clock"},
+			{"id": 21, "type": "counter", "x": 28, "y": 17},
+			{"id": 22, "type": "hex_display", "x": 36, "y": 15}
+		],
+		"wires": [
+			{"from": [1, "out"], "to": [3, "in0"]},
+			{"from": [2, "out"], "to": [3, "in1"], "bends": [[6, 10], [6, 5]]},
+			{"from": [1, "out"], "to": [4, "in0"], "bends": [[5, 3], [5, 9]]},
+			{"from": [2, "out"], "to": [4, "in1"], "bends": [[6, 10], [6, 11]]},
+			{"from": [1, "out"], "to": [5, "in0"], "bends": [[5, 3], [5, 15]]},
+			{"from": [2, "out"], "to": [5, "in1"], "bends": [[6, 10], [6, 17]]},
+			{"from": [3, "out"], "to": [6, "in"]},
+			{"from": [4, "out"], "to": [7, "in"]},
+			{"from": [5, "out"], "to": [8, "in"]},
+
+			{"from": [10, "out"], "to": [12, "in0"]},
+			{"from": [11, "out"], "to": [13, "in1"]},
+			{"from": [13, "out"], "to": [12, "in1"], "bends": [[33, 9], [33, 6], [27, 6], [27, 5]]},
+			{"from": [12, "out"], "to": [13, "in0"], "bends": [[34, 4], [34, 7], [26, 7], [26, 8]]},
+			{"from": [12, "out"], "to": [14, "in"]},
+			{"from": [13, "out"], "to": [15, "in"]},
+
+			{"from": [20, "out"], "to": [21, "CLK"]},
+			{"from": [21, "Q"], "to": [22, "in"]}
+		]
+	}
+}

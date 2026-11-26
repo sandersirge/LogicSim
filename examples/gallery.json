@@ -1,0 +1,593 @@
+{
+ "format": "logicsim",
+ "version": 1,
+ "circuit": {
+  "name": "Parts gallery",
+  "components": [
+   {
+    "id": 1,
+    "type": "switch",
+    "x": 1,
+    "y": 2,
+    "label": "x",
+    "props": {
+     "value": 1
+    }
+   },
+   {
+    "id": 2,
+    "type": "switch",
+    "x": 1,
+    "y": 6,
+    "label": "y"
+   },
+   {
+    "id": 3,
+    "type": "and",
+    "x": 7,
+    "y": 2
+   },
+   {
+    "id": 4,
+    "type": "or",
+    "x": 13,
+    "y": 2
+   },
+   {
+    "id": 5,
+    "type": "nand",
+    "x": 19,
+    "y": 2
+   },
+   {
+    "id": 6,
+    "type": "nor",
+    "x": 25,
+    "y": 2
+   },
+   {
+    "id": 7,
+    "type": "xor",
+    "x": 31,
+    "y": 2
+   },
+   {
+    "id": 8,
+    "type": "xnor",
+    "x": 37,
+    "y": 2
+   },
+   {
+    "id": 9,
+    "type": "not",
+    "x": 43,
+    "y": 2
+   },
+   {
+    "id": 10,
+    "type": "buffer",
+    "x": 47,
+    "y": 2
+   },
+   {
+    "id": 11,
+    "type": "text",
+    "x": 1,
+    "y": 10,
+    "props": {
+     "text": "Inputs and outputs"
+    }
+   },
+   {
+    "id": 12,
+    "type": "input_pin",
+    "x": 1,
+    "y": 12,
+    "label": "data",
+    "props": {
+     "width": 4,
+     "value": 10
+    }
+   },
+   {
+    "id": 13,
+    "type": "probe",
+    "x": 9,
+    "y": 12,
+    "props": {
+     "width": 4
+    }
+   },
+   {
+    "id": 14,
+    "type": "hex_display",
+    "x": 15,
+    "y": 10
+   },
+   {
+    "id": 15,
+    "type": "output_pin",
+    "x": 21,
+    "y": 12,
+    "label": "out",
+    "props": {
+     "width": 4
+    }
+   },
+   {
+    "id": 16,
+    "type": "splitter",
+    "x": 28,
+    "y": 12,
+    "props": {
+     "width": 4
+    }
+   },
+   {
+    "id": 17,
+    "type": "seven_segment",
+    "x": 34,
+    "y": 9,
+    "props": {
+     "color": "#40ff80"
+    }
+   },
+   {
+    "id": 18,
+    "type": "constant",
+    "x": 28,
+    "y": 18,
+    "props": {
+     "value": 1
+    }
+   },
+   {
+    "id": 19,
+    "type": "button",
+    "x": 42,
+    "y": 12,
+    "label": "press"
+   },
+   {
+    "id": 20,
+    "type": "led",
+    "x": 46,
+    "y": 12
+   },
+   {
+    "id": 21,
+    "type": "clock",
+    "x": 42,
+    "y": 16,
+    "label": "clk"
+   },
+   {
+    "id": 22,
+    "type": "led",
+    "x": 46,
+    "y": 16,
+    "props": {
+     "color": "#ffd040"
+    }
+   },
+   {
+    "id": 23,
+    "type": "tunnel",
+    "x": 50,
+    "y": 12,
+    "props": {
+     "text": "T"
+    }
+   },
+   {
+    "id": 24,
+    "type": "text",
+    "x": 1,
+    "y": 22,
+    "props": {
+     "text": "Plexers, flip-flops and memory"
+    }
+   },
+   {
+    "id": 25,
+    "type": "mux",
+    "x": 1,
+    "y": 24,
+    "props": {
+     "selectBits": 2
+    }
+   },
+   {
+    "id": 26,
+    "type": "demux",
+    "x": 8,
+    "y": 24,
+    "props": {
+     "selectBits": 2
+    }
+   },
+   {
+    "id": 27,
+    "type": "decoder",
+    "x": 15,
+    "y": 24,
+    "props": {
+     "selectBits": 2
+    }
+   },
+   {
+    "id": 28,
+    "type": "priority_encoder",
+    "x": 22,
+    "y": 24,
+    "props": {
+     "selectBits": 2
+    }
+   },
+   {
+    "id": 29,
+    "type": "sr_latch",
+    "x": 29,
+    "y": 24
+   },
+   {
+    "id": 30,
+    "type": "d_latch",
+    "x": 35,
+    "y": 24
+   },
+   {
+    "id": 31,
+    "type": "d_flip_flop",
+    "x": 41,
+    "y": 24
+   },
+   {
+    "id": 32,
+    "type": "jk_flip_flop",
+    "x": 47,
+    "y": 24
+   },
+   {
+    "id": 33,
+    "type": "t_flip_flop",
+    "x": 53,
+    "y": 24
+   },
+   {
+    "id": 34,
+    "type": "register",
+    "x": 1,
+    "y": 34
+   },
+   {
+    "id": 35,
+    "type": "counter",
+    "x": 8,
+    "y": 34
+   },
+   {
+    "id": 36,
+    "type": "ram",
+    "x": 15,
+    "y": 34
+   },
+   {
+    "id": 37,
+    "type": "rom",
+    "x": 23,
+    "y": 34,
+    "props": {
+     "data": [
+      1,
+      2,
+      3
+     ]
+    }
+   },
+   {
+    "id": 38,
+    "type": "merger",
+    "x": 30,
+    "y": 34,
+    "props": {
+     "width": 8,
+     "parts": [
+      4,
+      4
+     ]
+    }
+   },
+   {
+    "id": 39,
+    "type": "and",
+    "x": 36,
+    "y": 34,
+    "label": "rotated",
+    "rotation": 1
+   }
+  ],
+  "wires": [
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     3,
+     "in0"
+    ]
+   },
+   {
+    "from": [
+     2,
+     "out"
+    ],
+    "to": [
+     3,
+     "in1"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     4,
+     "in0"
+    ]
+   },
+   {
+    "from": [
+     2,
+     "out"
+    ],
+    "to": [
+     4,
+     "in1"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     5,
+     "in0"
+    ]
+   },
+   {
+    "from": [
+     2,
+     "out"
+    ],
+    "to": [
+     5,
+     "in1"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     6,
+     "in0"
+    ]
+   },
+   {
+    "from": [
+     2,
+     "out"
+    ],
+    "to": [
+     6,
+     "in1"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     7,
+     "in0"
+    ]
+   },
+   {
+    "from": [
+     2,
+     "out"
+    ],
+    "to": [
+     7,
+     "in1"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     8,
+     "in0"
+    ]
+   },
+   {
+    "from": [
+     2,
+     "out"
+    ],
+    "to": [
+     8,
+     "in1"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     9,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     1,
+     "out"
+    ],
+    "to": [
+     10,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     12,
+     "out"
+    ],
+    "to": [
+     13,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     12,
+     "out"
+    ],
+    "to": [
+     14,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     12,
+     "out"
+    ],
+    "to": [
+     15,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     12,
+     "out"
+    ],
+    "to": [
+     16,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     16,
+     "0"
+    ],
+    "to": [
+     17,
+     "a"
+    ]
+   },
+   {
+    "from": [
+     16,
+     "1"
+    ],
+    "to": [
+     17,
+     "b"
+    ]
+   },
+   {
+    "from": [
+     16,
+     "2"
+    ],
+    "to": [
+     17,
+     "c"
+    ]
+   },
+   {
+    "from": [
+     16,
+     "3"
+    ],
+    "to": [
+     17,
+     "d"
+    ]
+   },
+   {
+    "from": [
+     18,
+     "out"
+    ],
+    "to": [
+     17,
+     "e"
+    ]
+   },
+   {
+    "from": [
+     18,
+     "out"
+    ],
+    "to": [
+     17,
+     "f"
+    ]
+   },
+   {
+    "from": [
+     18,
+     "out"
+    ],
+    "to": [
+     17,
+     "g"
+    ]
+   },
+   {
+    "from": [
+     19,
+     "out"
+    ],
+    "to": [
+     20,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     21,
+     "out"
+    ],
+    "to": [
+     22,
+     "in"
+    ]
+   },
+   {
+    "from": [
+     19,
+     "out"
+    ],
+    "to": [
+     23,
+     "io"
+    ]
+   }
+  ]
+ }
+}

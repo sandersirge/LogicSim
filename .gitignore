@@ -1,0 +1,9 @@
+# Build output: CMake build folders and CLion's cmake-build-*
+build/
+build-*/
+cmake-build-*/
+*.log
+
+# IDE files
+.idea/
+.vscode/
