@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=LogicSim
+Comment=Logic-gate simulator: place gates, wire them and watch the signals propagate
+Exec=logicsim %f
+Icon=logicsim
+Terminal=false
+Categories=Education;Electronics;Engineering;
+Keywords=logic;gate;circuit;simulator;digital;

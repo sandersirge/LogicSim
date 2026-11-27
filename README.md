@@ -1,10 +1,21 @@
-# LogicSim
+# <img src="res/logicsim.png" alt="" width="48" align="top"> LogicSim
+
+[![CI](https://github.com/sandersirge/LogicSim/actions/workflows/ci.yml/badge.svg)](https://github.com/sandersirge/LogicSim/actions/workflows/ci.yml)
 
 A logic-gate simulator: place gates on a grid, wire them together and watch the signals
 propagate, from single gates to adders, latches, counters and memory.
 
 C++23, SFML 3.1 and Dear ImGui. The simulation engine (`src/core`) has no GUI dependency and is
 covered by unit tests.
+
+![LogicSim with the basics example: gates, an SR latch made of NOR gates and a counter on a display](docs/screenshot.png)
+
+## Download
+
+Ready-to-run downloads for Windows (zip), Linux (AppImage or tar.gz) and macOS (zipped app) are on
+the [Releases](https://github.com/sandersirge/LogicSim/releases) page; they need nothing else
+installed and include the example circuits. On macOS right-click the app and choose Open the first
+time (it is not signed with an Apple certificate).
 
 ## Features
 
@@ -70,6 +81,7 @@ build/bin/logicsim examples/basics.json
 ```
 
 `-DLOGICSIM_BUILD_GUI=OFF` builds only the engine and its tests (no SFML or ImGui needed).
+Every option, CLion, formatting, the icon, CI and releases: [docs/building.md](docs/building.md).
 
 ## Using it
 
@@ -96,4 +108,5 @@ register, a 4-bit ALU built from nested adder chips, a D latch and a master-slav
 of gates, a ring oscillator, a counter on a 7-segment display, a multiplexer and decoder, a
 register file and RAM.
 
-`logicsim circuit.json --screenshot out.png --ticks 50` saves a picture after 50 ticks and quits.
+`logicsim circuit.json --screenshot out.png --ticks 50` saves a picture after 50 ticks and quits;
+`logicsim --help` lists the options. Help > About shows the version.

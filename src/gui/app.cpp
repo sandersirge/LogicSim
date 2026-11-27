@@ -1,8 +1,11 @@
 #include "gui/app.hpp"
 
 #include "core/json_io.hpp"
+#include "core/version.hpp"
 #include "gui/draw.hpp"
+#include "gui/logo.hpp"
 
+#include <SFML/Config.hpp>
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/View.hpp>
@@ -95,6 +98,15 @@ App::App(std::filesystem::path programDir)
     : window_(sf::VideoMode({1500u, 900u}), "LogicSim"), programDir_(std::move(programDir)) {
 	window_.setVerticalSyncEnabled(true);
 	window_.setMinimumSize(sf::Vector2u{1000u, 650u});
+	// The logo as window icon (title bar, taskbar, window switcher); on Windows the .exe has it too
+	std::vector<std::uint8_t> icon = drawLogo(64);
+	window_.setIcon(sf::Vector2u{64u, 64u}, icon.data());
+	std::vector<std::uint8_t> logo = drawLogo(128);
+	logoReady_ = logo_.resize(sf::Vector2u{128u, 128u});
+	if (logoReady_) {
+		logo_.update(logo.data());
+		logo_.setSmooth(true);
+	}
 	imguiReady_ = ImGui::SFML::Init(window_, false);
 	ImGui::GetIO().IniFilename = nullptr;
 	applyTheme();
@@ -131,11 +143,14 @@ void App::loadFonts() {
 }
 
 std::filesystem::path App::examplesDir() const {
+	// Next to the program, in an install's share folder (and an AppImage), in the macOS app bundle's
+	// Resources, or the working folder (a source checkout)
 	std::error_code error;
 	for (const std::filesystem::path& dir :
-	     {programDir_ / "examples", std::filesystem::current_path() / "examples"}) {
+	     {programDir_ / "examples", programDir_ / ".." / "share" / "logicsim" / "examples",
+	      programDir_ / ".." / "Resources" / "examples", std::filesystem::current_path() / "examples"}) {
 		if (std::filesystem::is_directory(dir, error)) {
-			return dir;
+			return std::filesystem::weakly_canonical(dir, error);
 		}
 	}
 	return std::filesystem::current_path(error);
@@ -608,12 +623,54 @@ void App::menuBar() {
 		ImGui::BulletText("Drag from a pin to a pin: wire (click on the grid adds bends)");
 		ImGui::BulletText("Drag a part: move; drag on the grid: select an area");
 		ImGui::BulletText("Click a switch / input pin bit: flip it; hold a button");
+		ImGui::BulletText("Double-click a chip: open it");
 		ImGui::BulletText("Right or middle drag: pan; wheel: zoom; right click: cancel");
 		ImGui::TextDisabled("Wire colours");
 		ImGui::BulletText("bright green 1, dark green 0, blue unknown (X), yellow partly known");
+		ImGui::Separator();
+		if (ImGui::MenuItem("About LogicSim")) {
+			aboutOpen_ = true;
+		}
 		ImGui::EndMenu();
 	}
 	ImGui::EndMainMenuBar();
+}
+
+void App::aboutDialog() {
+	if (aboutOpen_) {
+		ImGui::OpenPopup("About LogicSim");
+		aboutOpen_ = false;
+	}
+	ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+	if (!ImGui::BeginPopupModal("About LogicSim", nullptr,
+	                            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
+		return;
+	}
+	if (logoReady_) {
+		ImGui::Image(logo_, sf::Vector2f{96.f, 96.f});
+		ImGui::SameLine();
+	}
+	ImGui::BeginGroup();
+	ImGui::Dummy({0.f, 14.f});
+	ImGui::Text("LogicSim %s", std::string(version::NUMBER).c_str());
+	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 330.f);
+	ImGui::TextWrapped("%s", std::string(version::DESCRIPTION).c_str());
+	ImGui::PopTextWrapPos();
+	ImGui::TextDisabled("%s", std::string(version::HOMEPAGE).c_str());
+	ImGui::EndGroup();
+	ImGui::Spacing();
+	ImGui::TextDisabled("Built with SFML %d.%d, Dear ImGui %s and nlohmann/json", SFML_VERSION_MAJOR,
+	                    SFML_VERSION_MINOR, IMGUI_VERSION);
+	ImGui::Spacing();
+	if (ImGui::Button("Copy homepage link", {170.f, 0.f})) {
+		ImGui::SetClipboardText(std::string(version::HOMEPAGE).c_str());
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Close", {110.f, 0.f}) || ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+	    ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::EndPopup();
 }
 
 void App::toolbar(float y) {
@@ -853,6 +910,12 @@ int App::run(const Options& options) {
 		}
 	}
 	bool fitPending = !options.file.empty();
+	aboutOpen_ = options.about;
+	if (!options.screenshot.empty()) {
+		// A screenshot needs no mouse cursors; leaving them alone also keeps it working on displays
+		// without cursor support (a bare Xvfb in a container)
+		ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+	}
 	sf::Clock clock;
 	int frames = 0;
 	while (window_.isOpen()) {
@@ -912,6 +975,7 @@ int App::run(const Options& options) {
 		chipDialog();
 		confirmDialog();
 		messageDialog();
+		aboutDialog();
 
 		editor_.setCanvas({TOOLBOX_WIDTH, panelsTop}, {size.x - PROPERTIES_WIDTH, size.y - STATUS_HEIGHT});
 		breadcrumbs({TOOLBOX_WIDTH + 10.f, panelsTop + 8.f});

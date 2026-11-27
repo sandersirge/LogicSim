@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.28)
-project(LogicSim VERSION 1.0.0 LANGUAGES CXX)
+project(LogicSim VERSION 1.0.0
+    DESCRIPTION "Logic-gate simulator: place gates, wire them and watch the signals propagate"
+    HOMEPAGE_URL "https://github.com/sandersirge/LogicSim"
+    LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +20,12 @@ endif()
 
 option(LOGICSIM_BUILD_GUI "Build the app (needs SFML and Dear ImGui); OFF builds only the core and tests" ON)
 option(LOGICSIM_FETCH_SFML "Download and build SFML if SFML 3.1 is not installed" ON)
+option(LOGICSIM_MACOS_BUNDLE "macOS: build LogicSim.app instead of a plain logicsim program" OFF)
+option(LOGICSIM_SANITIZE "Build this project's targets with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(LOGICSIM_SANITIZE AND MSVC)
+    # MSVC refuses /fsanitize=address together with the run-time checks of its default Debug flags
+    string(REGEX REPLACE "/RTC[1csu]*" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+endif()
 
 include(FetchContent)
 
@@ -79,12 +88,24 @@ if(LOGICSIM_BUILD_GUI)
     endif()
 endif()
 
-# Warnings for every target of this project (not for downloaded libraries)
+# Warnings (and sanitizers when enabled) for every target of this project, not for downloaded libraries
 function(logicsim_warnings target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive- /utf-8)
     else()
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    if(LOGICSIM_SANITIZE)
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /fsanitize=address)
+        else()
+            # Every report stops the program, so a test with undefined behaviour fails;
+            # _GLIBCXX_ASSERTIONS adds bounds checks to std::vector::operator[] and friends
+            set(flags -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+            target_compile_options(${target} PRIVATE ${flags})
+            target_compile_definitions(${target} PRIVATE _GLIBCXX_ASSERTIONS)
+            target_link_options(${target} PUBLIC ${flags})
+        endif()
     endif()
 endfunction()
 
@@ -103,7 +124,10 @@ endfunction()
 # ImGui): used by the app and the tests.
 file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS src/core/*.cpp)
 add_library(logicsim_core STATIC ${CORE_SOURCES})
-target_include_directories(logicsim_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+# version.hpp: the version, description and homepage from project() above
+configure_file(cmake/version.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/generated/core/version.hpp @ONLY)
+target_include_directories(logicsim_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
+                           ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(logicsim_core PUBLIC nlohmann_json::nlohmann_json)
 logicsim_warnings(logicsim_core)
 
@@ -114,15 +138,51 @@ if(LOGICSIM_BUILD_GUI)
     target_include_directories(logicsim PRIVATE ${imgui_SOURCE_DIR}/misc/cpp)
     target_link_libraries(logicsim PRIVATE logicsim_core ImGui-SFML::ImGui-SFML SFML::Graphics)
     logicsim_warnings(logicsim)
+    if(WIN32)
+        # Windows: icon and version information as resources of logicsim.exe (the icon in res/ is
+        # made by the logicsim_icons tool below)
+        enable_language(RC)
+        set(LOGICSIM_ICO ${CMAKE_CURRENT_SOURCE_DIR}/res/logicsim.ico)
+        configure_file(cmake/logicsim.rc.in ${CMAKE_CURRENT_BINARY_DIR}/generated/logicsim.rc @ONLY)
+        target_sources(logicsim PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated/logicsim.rc)
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS res/logicsim.ico)
+    endif()
+    set(EXAMPLES_DESTINATION $<TARGET_FILE_DIR:logicsim>/examples)
+    if(APPLE AND LOGICSIM_MACOS_BUNDLE)
+        # macOS: <build>/bin/LogicSim.app with the icon, an Info.plist and the examples in Resources
+        set(ICNS ${CMAKE_CURRENT_SOURCE_DIR}/res/logicsim.icns)
+        set_source_files_properties(${ICNS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+        target_sources(logicsim PRIVATE ${ICNS})
+        set_target_properties(logicsim PROPERTIES
+            MACOSX_BUNDLE TRUE
+            OUTPUT_NAME "LogicSim"
+            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in
+            MACOSX_BUNDLE_EXECUTABLE_NAME "LogicSim"
+            MACOSX_BUNDLE_BUNDLE_NAME "LogicSim"
+            MACOSX_BUNDLE_GUI_IDENTIFIER io.github.sandersirge.logicsim
+            MACOSX_BUNDLE_ICON_FILE logicsim.icns
+            MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+            MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+            MACOSX_BUNDLE_COPYRIGHT "${PROJECT_HOMEPAGE_URL}")
+        set(EXAMPLES_DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:logicsim>/Resources/examples)
+    endif()
     if(MINGW)
         # A GUI application: no console window next to it
         target_link_options(logicsim PRIVATE -mwindows)
     endif()
     copy_runtime_dlls(logicsim)
-    # The example circuits next to the program, so File > Examples finds them
+    # The example circuits next to the program (in the bundle's Resources on macOS), so File > Examples
+    # finds them
     add_custom_command(TARGET logicsim POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-                ${CMAKE_CURRENT_SOURCE_DIR}/examples $<TARGET_FILE_DIR:logicsim>/examples)
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/examples ${EXAMPLES_DESTINATION})
+
+    # Writes res/logicsim.png, .ico and .icns from the logo drawn in code (not built by default:
+    # make icons, or build it and run logicsim_icons res)
+    add_executable(logicsim_icons EXCLUDE_FROM_ALL tools/make_icons.cpp src/gui/logo.cpp)
+    target_include_directories(logicsim_icons PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+    target_link_libraries(logicsim_icons PRIVATE SFML::Graphics)
+    logicsim_warnings(logicsim_icons)
+    copy_runtime_dlls(logicsim_icons)
 endif()
 
 # Tests (no window needed): ctest --test-dir <build folder>
@@ -149,5 +209,10 @@ if(BUILD_TESTING)
         logicsim_warnings(editor_test)
         copy_runtime_dlls(editor_test)
         add_test(NAME editor_test COMMAND editor_test)
+        # The logo drawing (plain pixels, no window)
+        add_executable(logo_test tests/gui/logo_test.cpp src/gui/logo.cpp)
+        target_include_directories(logo_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+        logicsim_warnings(logo_test)
+        add_test(NAME logo_test COMMAND logo_test)
     endif()
 endif()

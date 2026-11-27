@@ -1,7 +1,7 @@
 # Development plan
 
 What is done and what is left. The full original plan had seven milestones; 1–5 and the polish
-rounds are done. Next is milestone 6, the release.
+rounds are done, and milestone 6 (the release) up to tagging v1.0.0.
 
 ## Done
 
@@ -14,23 +14,17 @@ rounds are done. Next is milestone 6, the release.
 | Fixes and polish | Editing keeps the simulation state (moving/rotating does not recompile; other edits carry stored values, RAM, clock phase and wire values over to the recompiled circuit, matched by component path; Reset powers on); text notes sized to their text; wires of different signals on top of each other highlighted in orange with a warning (examples checked by `editor_test`); `.gitattributes` with LF line endings; pin labels hidden and names/values/notes kept at a readable size when zoomed out; red Exit button in the toolbar |
 | Audit fixes | Undo/redo and other commands during a drag end it first (Esc takes it back); saving over an existing file asks; a new wire drawn without bends takes a column free of other signals' wires and pins; junction dots cached instead of recomputed every frame; text notes do not rotate; the simulator no longer applies (and double-counts) an event that was replaced at the same tick when a later one follows, which could end `settle()` early |
 | 5. Chips in the editor | New chip from selection (name, colour, description); a Chips section in the toolbox; double-click or Open chip edits its inside with breadcrumbs back, its inputs clickable to try it out; wires to instances follow renamed or moved pins; rename, colour, description and delete (unused chips); a chip cannot contain itself; File > Import / Export chips (name clashes renamed); examples: 4-bit ALU from nested adder chips, gate-level D latch and master-slave flip-flop, ring oscillator, counter on a 7-segment display, multiplexer/decoder, register file, RAM, each checked by `examples_test` (the ALU exhaustively) |
+| 6. Release (all but the tag) | Logo drawn in code (`src/gui/logo.cpp`, tested by `logo_test`): window icon and Help > About; `logicsim_icons` / `make icons` writes `res/logicsim.png`, `.ico` (in `logicsim.exe` with version information) and `.icns`; `--version`, `--help`; macOS app bundle option; README with logo, screenshot and downloads; `docs/building.md`; CI (Ubuntu 24.04 and 26.04 with SFML downloaded, as no Ubuntu ships SFML 3.1; Windows MSYS2; macOS Homebrew; engine alone; sanitizers; pinned clang-format; screenshots of every example under Xvfb); Package (static SFML, Windows zip with no DLLs, Linux tar.gz and AppImage, macOS `LogicSim.app`, each with the examples and licence texts); Release on a `v*` tag |
 
-## Milestone 6: release
+## Milestone 6: what is left
 
-- **Logo:** a small logo drawn in code (e.g. an AND gate with a lit green output wire on the dark
-  canvas colour), made into an `sf::Image` at startup and set as the window icon
-  (`window.setIcon`), shown in Help > About and on the start screen of the learning mode. A
-  generated `.ico` (Windows resource file, so the .exe has the icon in Explorer) and a PNG for the
-  README and the macOS/Linux packages.
-- **README:** screenshot, feature list, controls (mostly there already).
-- **docs/building.md:** MSYS2, WSL/Linux, macOS steps (like Minesweeper).
-- **CI** (`.github/workflows/ci.yml`): build and test on Windows (MSYS2 UCRT64), Linux (Ubuntu
-  with SFML 3 from apt, and one with SFML downloaded) and macOS (Homebrew). Tests run headless;
-  `editor_test` needs no window.
-- **Package** (`package.yml`): static SFML builds for Windows x64, Linux x64 and macOS arm64,
-  archive = program + `examples/` + README.
-- **Release** (`release.yml`): a `v*` tag builds the packages and publishes a GitHub release.
-- Tag **v1.0.0**.
+- Run the Package workflow once by hand and try the downloads on each system.
+- Tag **v1.0.0** (`git tag -s v1.0.0 -m "LogicSim 1.0.0" && git push origin v1.0.0`); the Release
+  workflow publishes the downloads.
+- The start screen of the learning mode shows the logo (milestone 7).
+- Toolbox: long part names ("Multiplexer", "Demultiplexer", "Priority encoder") are clipped in
+  their half-width buttons, more so with Linux's wider DejaVu font; shorten them or give them a
+  full row.
 
 ## Milestone 7 (v1.1): learning mode
 

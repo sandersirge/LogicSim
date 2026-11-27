@@ -5,6 +5,7 @@
 #include "gui/editor.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics/Texture.hpp>
 #include <SFML/System/Clock.hpp>
 
 #include <filesystem>
@@ -25,6 +26,7 @@ public:
 		std::filesystem::path file;       // circuit to open
 		std::filesystem::path screenshot; // save a picture and quit
 		logic::Tick ticks = 0;            // simulation ticks before the screenshot
+		bool about = false;               // show Help > About (for screenshots)
 	};
 	int run(const Options& options);
 
@@ -39,6 +41,7 @@ private:
 	void confirmDialog();
 	void messageDialog();
 	void chipDialog();
+	void aboutDialog();
 	void breadcrumbs(ImVec2 at);
 	bool appKey(const sf::Event::KeyPressed& key);
 	void updateTitle();
@@ -81,6 +84,10 @@ private:
 	std::string message_;
 	bool messageOpen_ = false;
 	std::string title_;
+	// Help > About, with the logo
+	bool aboutOpen_ = false;
+	sf::Texture logo_;
+	bool logoReady_ = false;
 	// Double clicks on the canvas
 	sf::Clock lastClick_;
 	sf::Vector2i lastClickAt_{-100, -100};

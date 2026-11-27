@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Neither Ubuntu ships SFML 3.1 yet, so CMake downloads and builds it (with these dev packages).
+        # 24.04 checks the oldest supported compiler (GCC 13), 26.04 a current one.
+        runner: [ubuntu-24.04, ubuntu-26.04]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            libxrandr-dev libxcursor-dev libxi-dev libudev-dev libfreetype-dev libharfbuzz-dev \
+            libgl1-mesa-dev libegl1-mesa-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: GUI smoke test (a screenshot of every example under a virtual display)
+        if: matrix.runner == 'ubuntu-26.04'
+        run: |
+          sudo apt-get install -y xvfb xfonts-base libgl1-mesa-dri fonts-dejavu-core
+          mkdir -p smoke
+          for file in examples/*.json; do
+            name=$(basename "$file" .json)
+            xvfb-run -a -s "-screen 0 1920x1080x24" build/bin/logicsim "$file" --screenshot "smoke/$name.png" --ticks 50
+            # A picture of the window with something drawn in it (an empty one compresses to a few KB)
+            size=$(stat -c %s "smoke/$name.png")
+            echo "$name.png: $size bytes"
+            test "$size" -gt 30000
+          done
+
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.runner == 'ubuntu-26.04'
+        with:
+          name: gui-smoke-screenshots
+          path: smoke/
+          if-no-files-found: ignore
+
+      - name: Makefile wrapper
+        if: matrix.runner == 'ubuntu-26.04'
+        run: make test BUILD_DIR=build-make
+
+  windows:
+    name: Windows (MSYS2 UCRT64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git make
+          pacboy: >-
+            gcc:p cmake:p ninja:p pkgconf:p sfml:p
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          build/bin/logicsim.exe --version
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install SFML and Ninja
+        run: brew install sfml ninja pkgconf
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          build/bin/logicsim --version
+
+  core-only:
+    # The engine and its tests without SFML or ImGui (-DLOGICSIM_BUILD_GUI=OFF)
+    name: Core only (no GUI)
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure, build and test
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLOGICSIM_BUILD_GUI=OFF
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    # AddressSanitizer + UndefinedBehaviorSanitizer (and libstdc++ bounds checks) over the engine's tests
+    name: Sanitizers (${{ matrix.compiler }})
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure, build and test
+        env:
+          CXX: ${{ matrix.compiler }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build clang
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLOGICSIM_BUILD_GUI=OFF -DLOGICSIM_SANITIZE=ON
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  format:
+    # clang-format is pinned (versions format a few constructs differently); format locally with the
+    # same version: pip install clang-format==21.1.8, then make format
+    name: clang-format
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check formatting
+        run: |
+          pipx install clang-format==21.1.8
+          clang-format --version
+          make format-check

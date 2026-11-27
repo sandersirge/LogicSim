@@ -1,0 +1,183 @@
+name: Package
+
+# Builds a ready-to-run download of the app for Windows (zip), Linux (tar.gz and AppImage) and macOS
+# (a zipped .app), each with the example circuits. SFML (and FreeType) are downloaded and linked
+# statically, so the archives need no installed SFML; on Windows the compiler runtime is linked in as
+# well, so logicsim.exe has no DLLs next to it.
+#
+# Runs by hand (Actions -> Package -> Run workflow), when this file changes, and from the Release
+# workflow, which attaches the archives to a GitHub release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version in the archive names (default: short commit hash)"
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+  push:
+    branches: [main]
+    paths: [".github/workflows/package.yml"]
+
+env:
+  # Release build; SFML and nlohmann/json always downloaded (even where installed), SFML built statically
+  CMAKE_OPTIONS: >-
+    -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+    -DLOGICSIM_FETCH_SFML=ON -DCMAKE_DISABLE_FIND_PACKAGE_SFML=ON
+    -DCMAKE_DISABLE_FIND_PACKAGE_nlohmann_json=ON
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            runner: windows-latest
+            platform: windows-x64
+            shell: msys2 {0}
+          # Built on the oldest supported Ubuntu, so the binary also runs on newer systems
+          - name: Linux x64
+            runner: ubuntu-24.04
+            platform: linux-x64
+            shell: bash
+          - name: macOS arm64
+            runner: macos-latest
+            platform: macos-arm64
+            shell: bash
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build tools (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git zip
+          pacboy: gcc:p cmake:p ninja:p
+
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build \
+            libxrandr-dev libxcursor-dev libxi-dev libudev-dev libfreetype-dev libharfbuzz-dev \
+            libgl1-mesa-dev libegl1-mesa-dev
+
+      - name: Install build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          version="${VERSION:-${GITHUB_SHA::7}}"
+          echo "PACKAGE=logicsim-$version-${{ matrix.platform }}" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: |
+          extra=""
+          case "${{ runner.os }}" in
+            Windows) extra="-DCMAKE_EXE_LINKER_FLAGS=-static" ;;
+            # An app bundle with the icon; macOS 13.3 for std::to_chars of floating point numbers
+            macOS) extra="-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 -DLOGICSIM_MACOS_BUNDLE=ON" ;;
+          esac
+          cmake -S . -B build -G Ninja $CMAKE_OPTIONS $extra
+          case "${{ runner.os }}" in
+            Windows) echo "APP=build/bin/logicsim.exe" >> "$GITHUB_ENV" ;;
+            Linux) echo "APP=build/bin/logicsim" >> "$GITHUB_ENV" ;;
+            macOS) echo "APP=build/bin/LogicSim.app/Contents/MacOS/LogicSim" >> "$GITHUB_ENV" ;;
+          esac
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          "$APP" --version
+
+      - name: Check the app's dependencies
+        run: |
+          case "${{ runner.os }}" in
+            Windows)
+              ldd "$APP"
+              # Only Windows' own DLLs may remain
+              if ldd "$APP" | grep -iv '/windows/' | grep -q '=>'; then
+                echo "::error::logicsim.exe needs DLLs that are not part of Windows"; exit 1
+              fi ;;
+            Linux) ldd "$APP"; ! ldd "$APP" | grep -iq sfml ;;
+            macOS) otool -L "$APP"; ! otool -L "$APP" | grep -iq -e sfml -e homebrew ;;
+          esac
+
+      - name: Make the archive
+        run: |
+          mkdir -p "dist/$PACKAGE"
+          cp README.md "dist/$PACKAGE/"
+          # Licence texts of everything CMake downloaded and linked in (SFML, its FreeType, ImGui, ...)
+          for dir in build/_deps/*-src; do
+            name=$(basename "$dir" -src)
+            for file in "$dir"/LICENSE* "$dir"/LICENCE* "$dir"/COPYING* "$dir"/license* "$dir"/docs/FTL.TXT; do
+              if [ -f "$file" ]; then
+                mkdir -p "dist/$PACKAGE/licenses/$name"
+                cp "$file" "dist/$PACKAGE/licenses/$name/"
+              fi
+            done
+          done
+          ls -R "dist/$PACKAGE/licenses"
+          case "${{ runner.os }}" in
+            Windows)
+              cp "$APP" "dist/$PACKAGE/"
+              cp -r examples "dist/$PACKAGE/"
+              (cd dist && zip -r "$PACKAGE.zip" "$PACKAGE") ;;
+            Linux)
+              cp "$APP" "dist/$PACKAGE/"
+              cp -r examples "dist/$PACKAGE/"
+              (cd dist && tar -czf "$PACKAGE.tar.gz" "$PACKAGE") ;;
+            macOS)
+              # The examples are inside the bundle (Contents/Resources/examples)
+              ls "build/bin/LogicSim.app/Contents/Resources/examples"
+              cp -R "build/bin/LogicSim.app" "dist/$PACKAGE/"
+              # Ad-hoc signature (no Apple developer certificate): the first start still needs
+              # right-click > Open, or: xattr -dr com.apple.quarantine LogicSim.app
+              codesign --force --deep --sign - "dist/$PACKAGE/LogicSim.app"
+              codesign --verify --deep --verbose=2 "dist/$PACKAGE/LogicSim.app"
+              (cd dist && ditto -c -k --keepParent "$PACKAGE" "$PACKAGE.zip") ;;
+          esac
+          ls -l dist
+
+      - name: Make the AppImage (Linux)
+        if: runner.os == 'Linux'
+        env:
+          # Run the AppImage tools without FUSE (not available on the runners)
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: |
+          wget -q -O linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy
+          # The app finds the examples in ../share/logicsim/examples next to usr/bin/logicsim
+          mkdir -p AppDir/usr/share/logicsim AppDir/usr/share/doc/logicsim
+          cp -r examples AppDir/usr/share/logicsim/
+          cp -r "dist/$PACKAGE/licenses" README.md AppDir/usr/share/doc/logicsim/
+          OUTPUT="$PACKAGE.AppImage" ./linuxdeploy --appdir AppDir --executable "$APP" \
+            --desktop-file res/logicsim.desktop --icon-file res/logicsim.png --output appimage
+          mv "$PACKAGE.AppImage" dist/
+          "dist/$PACKAGE.AppImage" --version
+          ls -l dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PACKAGE }}
+          path: dist/${{ env.PACKAGE }}.*
+          if-no-files-found: error
