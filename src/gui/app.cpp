@@ -736,16 +736,26 @@ void App::toolbox(float y, float height) {
 		if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 			continue;
 		}
+		// Two buttons a row, or one when a name of this category would not fit in half a row (with
+		// the font that was loaded: names are wider in DejaVu Sans than in Segoe UI)
+		bool twoColumns = true;
+		for (const logic::KindInfo& kind : logic::allKinds()) {
+			if (kind.category == category) {
+				float needed = ImGui::CalcTextSize(kind.name.data(), kind.name.data() + kind.name.size()).x +
+				               2 * ImGui::GetStyle().FramePadding.x;
+				twoColumns = twoColumns && needed <= buttonWidth;
+			}
+		}
 		int column = 0;
 		for (const logic::KindInfo& kind : logic::allKinds()) {
 			if (kind.category != category) {
 				continue;
 			}
-			if (column % 2 == 1) {
+			if (twoColumns && column % 2 == 1) {
 				ImGui::SameLine();
 			}
 			std::string label(kind.name);
-			if (ImGui::Button(label.c_str(), {buttonWidth, 0.f})) {
+			if (ImGui::Button(label.c_str(), {twoColumns ? buttonWidth : -1.f, 0.f})) {
 				editor_.startPlacing(kind.kind);
 			}
 			ImGui::SetItemTooltip("%s", std::string(kind.tooltip).c_str());

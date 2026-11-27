@@ -22,9 +22,6 @@ rounds are done, and milestone 6 (the release) up to tagging v1.0.0.
 - Tag **v1.0.0** (`git tag -s v1.0.0 -m "LogicSim 1.0.0" && git push origin v1.0.0`); the Release
   workflow publishes the downloads.
 - The start screen of the learning mode shows the logo (milestone 7).
-- Toolbox: long part names ("Multiplexer", "Demultiplexer", "Priority encoder") are clipped in
-  their half-width buttons, more so with Linux's wider DejaVu font; shorten them or give them a
-  full row.
 
 ## Milestone 7 (v1.1): learning mode
 
