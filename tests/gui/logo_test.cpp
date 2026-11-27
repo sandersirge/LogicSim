@@ -26,14 +26,18 @@ int main() {
 		check(at(logo, size, 0, 0).a == 0 && at(logo, size, size - 1, size - 1).a == 0,
 		      std::format("{}: the corners are transparent", size));
 		Pixel middle = at(logo, size, size / 2, size / 2);
-		check(middle.a == 255 && middle.r < 60 && middle.b < 80, std::format("{}: the gate body is dark", size));
+		check(middle.a == 255 && middle.r < 60 && middle.b < 80,
+		      std::format("{}: the gate body is dark", size));
 		// The output wire, between the gate and the right edge (the brighter of the two middle rows: at
 		// small sizes the wire's centre lies between them)
-		Pixel above = at(logo, size, size * 80 / 100, size / 2 - 1), below = at(logo, size, size * 80 / 100, size / 2);
+		Pixel above = at(logo, size, size * 80 / 100, size / 2 - 1),
+		      below = at(logo, size, size * 80 / 100, size / 2);
 		Pixel wire = above.g > below.g ? above : below;
-		check(wire.a == 255 && wire.g > 200 && wire.r < 140, std::format("{}: the output wire is lit green", size));
+		check(wire.a == 255 && wire.g > 200 && wire.r < 140,
+		      std::format("{}: the output wire is lit green", size));
 		Pixel background = at(logo, size, size / 2, size * 12 / 100);
-		check(background.a == 255 && background.g < 40, std::format("{}: the background is the canvas", size));
+		check(background.a == 255 && background.g < 40,
+		      std::format("{}: the background is the canvas", size));
 	}
 	check(gui::drawLogo(0).empty(), "size 0 gives no pixels");
 	return test::report("logo_test");

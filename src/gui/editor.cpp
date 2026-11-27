@@ -1252,7 +1252,7 @@ std::string Editor::hoverText() const {
 		Value v = pinValue(pin->component, pin->pin);
 		std::string text =
 		    std::format("{} pin {} ({}, {} bit{}): {}", logic::info(c->kind).name, p.name,
-			            p.output ? "output" : "input", p.width, p.width > 1 ? "s" : "", v.binary());
+		                p.output ? "output" : "input", p.width, p.width > 1 ? "s" : "", v.binary());
 		if (v.width > 1) {
 			text += std::format("  = {}  = {}", v.hex(), v.decimal());
 		}

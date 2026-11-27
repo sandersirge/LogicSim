@@ -78,8 +78,9 @@ Bytes ico(const std::vector<unsigned>& sizes) {
 
 // An .icns with PNG images (macOS 10.7 and later)
 Bytes icns() {
-	const std::pair<const char*, unsigned> types[] = {{"icp4", 16},  {"icp5", 32},  {"icp6", 64},  {"ic07", 128},
-	                                                  {"ic08", 256}, {"ic09", 512}, {"ic10", 1024}};
+	const std::pair<const char*, unsigned> types[] = {{"icp4", 16},  {"icp5", 32},  {"icp6", 64},
+	                                                  {"ic07", 128}, {"ic08", 256}, {"ic09", 512},
+	                                                  {"ic10", 1024}};
 	Bytes body;
 	for (const auto& [type, size] : types) {
 		Bytes image = png(size);

@@ -113,7 +113,7 @@ json circuitToJson(const Circuit& circuit, const Library& library) {
 		ComponentSpec spec = specOf(*c, library);
 		return ref.pin >= 0 && ref.pin < static_cast<int>(spec.pins.size())
 		           ? spec.pins[static_cast<size_t>(ref.pin)].name
-				   : std::string{};
+		           : std::string{};
 	};
 	for (const Wire& w : circuit.wires) {
 		std::string from = pinName(w.from), to = pinName(w.to);

@@ -94,15 +94,20 @@ std::vector<std::uint8_t> drawLogo(unsigned size) {
 	// Each pixel is the average of n x n samples (antialiasing); small icons get more of them
 	const int n = size <= 64 ? 8 : 4;
 	const float step = 1.f / static_cast<float>(size);
-	const Lines lines{std::max(0.06f, 2.f * step), std::max(0.05f, 1.2f * step), std::max(0.045f, 1.4f * step)};
+	const Lines lines{std::max(0.06f, 2.f * step), std::max(0.05f, 1.2f * step),
+	                  std::max(0.045f, 1.4f * step)};
 	for (unsigned py = 0; py < size; py++) {
 		for (unsigned px = 0; px < size; px++) {
 			// Premultiplied sums, so transparent samples do not darken the edges
 			std::array<float, 4> sum{};
 			for (int sy = 0; sy < n; sy++) {
 				for (int sx = 0; sx < n; sx++) {
-					float x = (static_cast<float>(px) + (static_cast<float>(sx) + 0.5f) / static_cast<float>(n)) * step;
-					float y = (static_cast<float>(py) + (static_cast<float>(sy) + 0.5f) / static_cast<float>(n)) * step;
+					float x =
+					    (static_cast<float>(px) + (static_cast<float>(sx) + 0.5f) / static_cast<float>(n)) *
+					    step;
+					float y =
+					    (static_cast<float>(py) + (static_cast<float>(sy) + 0.5f) / static_cast<float>(n)) *
+					    step;
 					Rgba c = colorAt(x, y, lines);
 					float a = c.a / 255.f;
 					sum[0] += c.r * a;
