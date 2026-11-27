@@ -742,8 +742,8 @@ void App::toolbox(float y, float height) {
 		bool twoColumns = true;
 		for (const logic::KindInfo& kind : logic::allKinds()) {
 			if (kind.category == category) {
-				float needed =
-				    ImGui::CalcTextSize(kind.name.data(), kind.name.data() + kind.name.size()).x + 2 * padding;
+				float needed = ImGui::CalcTextSize(kind.name.data(), kind.name.data() + kind.name.size()).x +
+				               2 * padding;
 				twoColumns = twoColumns && needed <= buttonWidth;
 			}
 		}
