@@ -175,3 +175,6 @@ git push origin v1.0.0
 - **macOS says the app is damaged or from an unidentified developer**: the downloads are not
   signed with an Apple certificate; right-click the app and choose Open, or run
   `xattr -dr com.apple.quarantine LogicSim.app`.
+- **Linux: `libXcursor.so.1: cannot open shared object file`** (the tar.gz on a minimal system
+  without a desktop): `sudo apt install libxcursor1 libxi6`, or use the AppImage, which brings
+  them along.

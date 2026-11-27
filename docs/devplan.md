@@ -18,9 +18,11 @@ rounds are done, and milestone 6 (the release) up to tagging v1.0.0.
 
 ## Milestone 6: what is left
 
-- Run the Package workflow once by hand and try the downloads on each system.
 - Tag **v1.0.0** (`git tag -s v1.0.0 -m "LogicSim 1.0.0" && git push origin v1.0.0`); the Release
-  workflow publishes the downloads.
+  workflow publishes the downloads. The Package workflow was run by hand (as 1.0.0-rc) and its
+  downloads were tried: the Windows zip on a PC without MSYS2, the Linux tar.gz and AppImage in
+  clean Ubuntu 24.04 and 26.04 containers (screenshots under Xvfb), and the macOS app's contents
+  and signature (not yet started on a Mac).
 - The start screen of the learning mode shows the logo (milestone 7).
 
 ## Milestone 7 (v1.1): learning mode

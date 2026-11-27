@@ -25,7 +25,7 @@ namespace gui {
 namespace {
 
 constexpr float TOOLBAR_HEIGHT = 46.f;
-constexpr float TOOLBOX_WIDTH = 220.f;
+constexpr float TOOLBOX_WIDTH = 232.f;
 constexpr float PROPERTIES_WIDTH = 290.f;
 constexpr float STATUS_HEIGHT = 30.f;
 
@@ -738,14 +738,16 @@ void App::toolbox(float y, float height) {
 		}
 		// Two buttons a row, or one when a name of this category would not fit in half a row (with
 		// the font that was loaded: names are wider in DejaVu Sans than in Segoe UI)
+		const float padding = 5.f;
 		bool twoColumns = true;
 		for (const logic::KindInfo& kind : logic::allKinds()) {
 			if (kind.category == category) {
-				float needed = ImGui::CalcTextSize(kind.name.data(), kind.name.data() + kind.name.size()).x +
-				               2 * ImGui::GetStyle().FramePadding.x;
+				float needed =
+				    ImGui::CalcTextSize(kind.name.data(), kind.name.data() + kind.name.size()).x + 2 * padding;
 				twoColumns = twoColumns && needed <= buttonWidth;
 			}
 		}
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {padding, ImGui::GetStyle().FramePadding.y});
 		int column = 0;
 		for (const logic::KindInfo& kind : logic::allKinds()) {
 			if (kind.category != category) {
@@ -761,6 +763,7 @@ void App::toolbox(float y, float height) {
 			ImGui::SetItemTooltip("%s", std::string(kind.tooltip).c_str());
 			column++;
 		}
+		ImGui::PopStyleVar();
 	}
 
 	// Custom chips: made from a selection, placed like any part, opened to edit their inside

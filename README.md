@@ -14,8 +14,9 @@ covered by unit tests.
 
 Ready-to-run downloads for Windows (zip), Linux (AppImage or tar.gz) and macOS (zipped app) are on
 the [Releases](https://github.com/sandersirge/LogicSim/releases) page; they need nothing else
-installed and include the example circuits. On macOS right-click the app and choose Open the first
-time (it is not signed with an Apple certificate).
+installed and include the example circuits. The Linux tar.gz uses the X libraries every desktop
+has (`libxcursor1` and `libxi6` on a minimal system); the AppImage brings its own. On macOS
+right-click the app and choose Open the first time (it is not signed with an Apple certificate).
 
 ## Features
 
