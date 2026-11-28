@@ -1,7 +1,7 @@
 # Development plan
 
-What is done and what is left. The full original plan had seven milestones; 1–5 and the polish
-rounds are done, and milestone 6 (the release) up to tagging v1.0.0.
+What is done and what is left. The full original plan had seven milestones; 1–6 and the polish
+rounds are done: **v1.0.0 is released**. Next is milestone 7, the learning mode (v1.1).
 
 ## Done
 
